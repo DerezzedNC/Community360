@@ -1,0 +1,24 @@
+# Secretos
+.env
+**/.env
+!**/.env.example
+credentials*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Salidas del ETL
+etl/salida/
+etl/install.log
+
+# Sistema
+.DS_Store
+Thumbs.db

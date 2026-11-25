@@ -1,0 +1,5 @@
+pandas>=2.0
+pymysql>=1.1
+certifi
+python-dotenv>=1.0
+couchbase>=4.3
