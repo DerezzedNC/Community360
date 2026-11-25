@@ -40,3 +40,10 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: comprobado en TiDB en solo lectura: 2 cuentas activas, hash Argon2id, correos y hashes distintos. 43 pruebas pasan (`pytest` completo).
 - Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_seguridad.py tests/test_crear_admin.py`. Para otra cuenta: `.venv\Scripts\python -m scripts.crear_admin` en una ventana de PowerShell, desde `backend/`.
 - Aviso →AG: no hay que cambiar nada. Los correos de las cuentas van en minúsculas y sin acentos ni ñ. Las credenciales las tiene Angel; no se escriben en el código ni en las evidencias.
+
+## 2026-11-24 · [CC] · VER-01
+- Qué cambió: Capella ya responde. Angel autorizó su IP actual en Allowed IP Addresses. VER-01 y la nota de F3-01 quedan resueltas; las pruebas con Capella simulada siguen como pruebas rápidas.
+- Cómo se probó (solo lectura): `GET /api/health` → `200` con las dos bases; `pytest -m nube` pasa; `interacciones` 203 y `cuarentena` 797 documentos; la API levantada sin Capella pasó de `503` a `200` sin reiniciar, unos 2 min después de volver la conexión.
+- Observación: en una de las consultas a `health`, TiDB no respondió a tiempo (16 s, `503` con `tidb: false`). No se repitió en 25 conexiones seguidas (mediana 1.4 s, máximo 3.3 s). Causa sin confirmar.
+- Para la demostración: si cambia la red, hay que autorizar la IP nueva en Capella, y levantar la API después de que el cluster esté HEALTHY.
+- Aviso →AG: `GET /api/health` ya puede dar `200` "ok". El indicador debe seguir soportando el `503`.

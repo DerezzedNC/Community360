@@ -7,7 +7,7 @@ Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza
 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
-| F3-01 | [CC] | Base del backend: estructura de `backend/`, `requirements.txt`, lectura de `.env` con pydantic-settings, conexión a TiDB y Capella, `GET /api/health`. **Nota:** pendiente verificar health 200 con Capella real (ver VER-01) | — | hecho |
+| F3-01 | [CC] | Base del backend: estructura de `backend/`, `requirements.txt`, lectura de `.env` con pydantic-settings, conexión a TiDB y Capella, `GET /api/health`. **Nota:** health 200 con Capella real verificado en VER-01 | — | hecho |
 | F3-02 | [CC] | Hash con Argon2 (`pwdlib`) y script `backend/scripts/crear_admin.py` para dar de alta un `admin` y un `analista` en `usuario_admin` (pide la contraseña por consola, nunca la guarda en texto) | F3-01 | hecho |
 | F3-03 | [CC] | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` según el contrato: JWT de 60 min, cookie httpOnly, revocación al salir, actualizar `ultimo_acceso` | F3-02 | pendiente |
 | F3-04 | [CC] | Proteger todo `/api/*` (excepto login y health) y permisos por rol (`analista` solo GET). Pruebas pytest: login correcto, contraseña incorrecta, sin token, token revocado, analista intentando escribir | F3-03 | pendiente |
@@ -43,11 +43,11 @@ Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza
 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
-| VER-01 | [CC] | Verificar con Capella real desde una red sin bloqueo (health 200 y `pytest -m nube`) | — | bloqueada |
+| VER-01 | [CC] | Verificar con Capella real desde una red sin bloqueo (health 200 y `pytest -m nube`) | — | hecho |
 
-Mientras VER-01 siga bloqueada, lo que toque Capella se programa con pruebas que la simulan (solo en `backend/tests/`; el dashboard sigue mostrando únicamente datos reales). Cada tarea agrega aquí lo que le falte probar con la base real:
+VER-01 se resolvió el 2026-11-24. Lo que se comprobó con la base real:
 
-- [ ] F3-01 · `GET /api/health` responde `200` con `{"estado": "ok", "tidb": true, "capella": true}`.
-- [ ] F3-01 · `pytest -m nube` pasa.
-- [ ] F3-01 · Capella acepta el usuario y la contraseña, y se puede leer la colección `interacciones` (la conexión nunca ha llegado a ese paso).
-- [ ] F3-01 · La API se reconecta sola: levantarla sin Capella (`503`) y, al volver la conexión, `health` pasa a `200` sin reiniciar.
+- [x] F3-01 · `GET /api/health` responde `200` con `{"estado": "ok", "tidb": true, "capella": true}`.
+- [x] F3-01 · `pytest -m nube` pasa.
+- [x] F3-01 · Capella acepta el usuario y la contraseña, y se puede leer la colección `interacciones` (203 documentos; `cuarentena`, 797).
+- [x] F3-01 · La API se reconecta sola: levantarla sin Capella (`503`) y, al volver la conexión, `health` pasa a `200` sin reiniciar (se usó una dirección que no contesta y luego la real; tardó unos 2 min, lo que tarda el SDK en abandonar el intento anterior).

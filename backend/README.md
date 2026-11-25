@@ -41,4 +41,4 @@ Pide correo, nombre, rol y contraseña (mínimo 12 caracteres; no se ve al escri
 .venv\Scripts\python -m pytest                 # incluye la conexión real (solo lectura)
 ```
 
-Mientras VER-01 (`docs/TAREAS.md`) siga bloqueada, la prueba `nube` falla porque no hay conexión con Capella: usar la primera.
+Si la prueba `nube` falla, revisar que el cluster de Capella esté HEALTHY y que la IP actual esté en Allowed IP Addresses.
