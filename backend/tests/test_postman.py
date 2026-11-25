@@ -86,6 +86,17 @@ def test_token_revocado_manda_el_token_guardado(coleccion):
     assert "{{c360_token}}" in json.dumps(por_nombre(coleccion, "Token revocado")["request"]["auth"])
 
 
+def test_fase_4_abre_su_propia_sesion(coleccion):
+    # El token de la Fase 3 termina revocado: la carpeta de la Fase 4 inicia sesión antes
+    [fase4] = [c for c in coleccion["item"] if c["name"].startswith("Fase 4")]
+    nombres = [i["name"] for i in peticiones(fase4)]
+    assert nombres[0] == "11. Login analista"
+    assert nombres[-1] == "13. Logout (analista)"
+    assert "12. Catálogos" in nombres
+    catalogos = por_nombre(coleccion, "Catálogos")["request"]
+    assert "{{c360_token}}" in json.dumps(catalogos["auth"])
+
+
 def test_la_coleccion_exige_su_entorno(coleccion):
     [evento] = coleccion["event"]
     texto = "\n".join(evento["script"]["exec"])

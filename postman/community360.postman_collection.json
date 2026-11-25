@@ -565,6 +565,188 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Fase 4 · Consultas",
+      "item": [
+        {
+          "name": "11. Login analista",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const correo = pm.environment.get('c360_correo_analista');",
+                  "const password = pm.environment.get('c360_password_analista');",
+                  "if (!correo || !password) {",
+                  "    pm.test('Llena c360_correo_analista y c360_password_analista en el entorno COMMUNITY 360 (valor local).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "// Si el login falla, que no quede un token anterior",
+                  "pm.environment.set('c360_token', '');",
+                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
+                  "pm.variables.set('c360_correo_json', JSON.stringify(correo));",
+                  "pm.variables.set('c360_password_json', JSON.stringify(password));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token y usuario con rol analista', () => {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r.tipo).to.eql('bearer');",
+                  "    pm.expect(r.expira_en).to.eql(3600);",
+                  "    pm.expect(r.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.usuario.rol).to.eql('analista');",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('c360_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/login",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Sesión para las consultas de la Fase 4. Guarda el token en c360_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": {{c360_correo_json}},\n  \"password\": {{c360_password_json}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12. Catálogos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Los 8 catálogos y nada de geografía', () => {",
+                  "    pm.expect(r).to.have.all.keys('rango_edad', 'especie', 'interes', 'plataforma', 'tema', 'etiqueta', 'tipo_interaccion', 'dispositivo');",
+                  "});",
+                  "pm.test('Campos con el nombre de las columnas de TiDB', () => {",
+                  "    Object.entries(r).forEach(([catalogo, lista]) => {",
+                  "        const nombre = catalogo === 'rango_edad' ? 'descripcion' : 'nombre';",
+                  "        const llaves = catalogo === 'tipo_interaccion' ? ['codigo', nombre, 'admite_texto', 'activo'] : ['codigo', nombre, 'activo'];",
+                  "        lista.forEach(item => pm.expect(item, catalogo).to.have.all.keys(llaves));",
+                  "    });",
+                  "});",
+                  "pm.test('Cada lista ordenada por código', () => {",
+                  "    Object.entries(r).forEach(([catalogo, lista]) => {",
+                  "        const codigos = lista.map(i => i.codigo);",
+                  "        pm.expect(codigos, catalogo).to.eql([...codigos].sort());",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/catalogos",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogos"
+              ]
+            },
+            "description": "Los 8 catálogos de TiDB, con los códigos inactivos marcados con activo: false. Sin país, estado ni ciudad."
+          },
+          "response": []
+        },
+        {
+          "name": "13. Logout (analista)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/logout",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Cierra la sesión de la Fase 4."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

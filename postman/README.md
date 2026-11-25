@@ -36,9 +36,15 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | 8. Login analista | `200` |
 | 9. Me (analista) | `200` |
 | 10. Logout (analista) | `204` |
+| **Fase 4 · Consultas** | |
+| 11. Login analista | `200` |
+| 12. Catálogos | `200` con los 8 catálogos |
+| 13. Logout (analista) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.
+- **La carpeta Fase 4 abre su propia sesión** (11) porque el token de la Fase 3 queda revocado en 10. Las consultas usan la cuenta analista: son de solo lectura.
+- **12. Catálogos** revisa que lleguen las 8 listas, sin país, estado ni ciudad, con los campos del contrato v0.5 y ordenadas por código. Los códigos inactivos aparecen con `activo: false`.
 
 ## Evidencias (F3-09)
 

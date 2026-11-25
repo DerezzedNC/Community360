@@ -95,3 +95,18 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Cómo se prueba: no aplica (solo documentos).
 - Datos revisados (solo lectura) para las tareas nuevas: 1068 usuarios, 897 con ubicación y 171 sin consentimiento y sin ubicación; 203 interacciones de 134 usuarios; 797 en cuarentena (`usuario_inexistente` 793, `fecha_anterior_ingreso` 4). En `interacciones` el id no es un campo del documento: es la llave (`META().id`).
 - Aviso →AG: F3-09 está `pospuesta`, no la tomen. La primera tarea disponible será F4-03a, cuando F4-02a esté en `hecho`. Los filtros de las vistas son consultas `GET`, no formularios de captura.
+
+## 2026-11-25 · [CC] · Repositorio en GitHub
+- Qué cambió: el proyecto está en un repositorio privado de GitHub (`origin`, rama `main`). Antes de subirlo se reescribió el historial para quitar los CSV (`etl/datos/`) y los PDF (`docs/especificacion/`), y el `TIDB_HOST` de `etl/.env.example` pasó a un valor de ejemplo. Los archivos siguen en el disco de Angel, ignorados. El `.gitignore` se completó y `AGENTS.md` tiene la sección "Git y GitHub".
+- Aviso →AG: los hashes de los commits anteriores cambiaron (su `[AG] F4-00 en curso` ahora es `2742b9b`). Al terminar cada tarea: commit, `git pull --rebase` y `git push` a `origin main`. No usar `git add -f` con archivos ignorados.
+
+## 2026-11-25 · [CC] · F4-02a
+- Qué cambió: `GET /api/catalogos` (`backend/app/routers/catalogos.py`, `backend/app/repositorios/catalogos.py`), `backend/tests/test_catalogos.py` y la carpeta **Fase 4 · Consultas** en `postman/` (11. Login analista, 12. Catálogos, 13. Logout). **Contrato v0.5**, aprobado por Angel: se incluyen los códigos inactivos con `activo: false` y no se incluye geografía (`pais`, `estado`, `ciudad`).
+- Estado: `pytest` completo, 132 de 132, incluidas las 2 pruebas `nube`. La de catálogos lee la TiDB real (solo lectura): 8 catálogos con 56 códigos, todos activos por ahora. Los 8 se leen con una sola consulta (`UNION ALL`).
+- Cómo se prueba: reiniciar la API (`backend/README.md`). Sin sesión: `curl.exe -i http://localhost:8000/api/catalogos` → `401`. Con sesión: en Postman, carpeta Fase 4 → 11, 12 y 13; o en el navegador, con sesión iniciada en el dashboard, abrir `http://localhost:5173/api/catalogos`.
+- **Aviso →AG: ya pueden tomar F4-03a** (sus dependencias F3-08 y F4-02a están en `hecho`). Usar el contrato v0.5:
+  - Una sola petición `GET /api/catalogos` al entrar al dashboard. Trae 8 llaves, siempre presentes; cada una es una lista ordenada por `codigo`.
+  - `rango_edad` trae `descripcion`, no `nombre`. Solo `tipo_interaccion` trae `admite_texto`.
+  - Para mostrar nombres legibles, buscar por `codigo` en **todas** las filas, también las de `activo: false`. Para las opciones de los filtros, **solo** las de `activo: true`.
+  - No hay países, estados ni ciudades en esta ruta: no armar filtros geográficos con ella.
+  - `401` → `/login`, como en cualquier ruta. `503` → aviso de servicio no disponible, sin datos de reemplazo.

@@ -25,7 +25,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 |---|---|---|---|---|
 | F4-00 | [AG] | Estructura del dashboard y componentes de gráficas | — | en curso |
 | F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | pendiente |
-| F4-02a | [CC] | `GET /api/catalogos`: los 8 catálogos de TiDB | F3-04 | pendiente |
+| F4-02a | [CC] | `GET /api/catalogos`: los 8 catálogos de TiDB | F3-04 | hecho |
 | F4-02b | [CC] | `GET /api/usuarios` (paginado y con filtros) y `GET /api/usuarios/{id_usuario}`. `ubicacion` es `null` sin consentimiento, con prueba que lo garantice | F4-02a | pendiente |
 | F4-02c | [CC] | `docs/INDICADORES.md`, primera versión: definición y fórmula de cada dato de `/api/metricas/*`, antes de programarlo | F3-04 | pendiente |
 | F4-02d | [CC] | Métricas de TiDB: `GET /api/metricas/estatus` y `GET /api/metricas/geografia` (solo con consentimiento) | F4-02c | pendiente |

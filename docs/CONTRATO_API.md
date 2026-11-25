@@ -1,6 +1,11 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.4** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
+**Versión 0.5** (Fase 3 cerrada; en la Fase 4 ya está definido `GET /api/catalogos`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+
+| Versión | Cambio |
+|---|---|
+| 0.5 | `GET /api/catalogos` definido: formato, orden, códigos inactivos con `activo: false` y sin geografía (F4-02a) |
+| 0.4 | Protección de `/api/*`, cuerpo del `403` y permisos por rol (F3-04) |
 Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cambio sube la versión y se anota en `docs/BITACORA.md`.
 
 ## Generalidades
@@ -114,7 +119,7 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 |---|---|
 | `GET /api/usuarios` | Padrón paginado. Filtros: `estatus`, `plataforma`, `especie`, `interes`. Sin ubicación para quien no dio consentimiento |
 | `GET /api/usuarios/{id_usuario}` | Un usuario; `ubicacion` es `null` si no dio consentimiento |
-| `GET /api/catalogos` | Todos los catálogos con código y nombre |
+| `GET /api/catalogos` | Los 8 catálogos de TiDB. **Definido en v0.5**: ver abajo |
 | `GET /api/metricas/resumen` | Totales e indicadores principales (ver `docs/INDICADORES.md`) |
 | `GET /api/metricas/estatus` | Usuarios por estatus (activo, en riesgo, inactivo) |
 | `GET /api/metricas/plataformas` | Usuarios e interacciones por plataforma |
@@ -122,6 +127,36 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 | `GET /api/metricas/actividad` | Mapa de calor: interacciones por día de la semana × hora |
 | `GET /api/metricas/geografia` | Usuarios por estado y ciudad, **solo** con consentimiento |
 | `GET /api/cuarentena` | Registros rechazados. Filtro: `motivo` |
+
+### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
+
+Devuelve los 8 catálogos de TiDB en una sola respuesta. No recibe parámetros.
+
+- `200` → un objeto con las 8 llaves, siempre presentes (un catálogo sin filas llega como `[]`):
+
+```json
+{
+  "rango_edad":       [ { "codigo": "18_24", "descripcion": "18-24", "activo": true } ],
+  "especie":          [ { "codigo": "ave", "nombre": "Ave", "activo": true } ],
+  "interes":          [ { "codigo": "arte_digital", "nombre": "Arte digital", "activo": true } ],
+  "plataforma":       [ { "codigo": "discord", "nombre": "Discord", "activo": true } ],
+  "tema":             [ { "codigo": "arte_comisiones", "nombre": "Arte y comisiones", "activo": true } ],
+  "etiqueta":         [ { "codigo": "arte", "nombre": "Arte", "activo": true } ],
+  "tipo_interaccion": [ { "codigo": "comentario", "nombre": "Comentario", "admite_texto": true, "activo": true } ],
+  "dispositivo":      [ { "codigo": "android", "nombre": "Android", "activo": true } ]
+}
+```
+
+- `401` sin sesión válida. `503` → `{"detail": "Base de datos no disponible"}` si TiDB no responde.
+
+Reglas:
+
+- Los campos se llaman igual que las columnas de TiDB. Por eso `rango_edad` trae `descripcion` en lugar de `nombre`, y solo `tipo_interaccion` trae `admite_texto`.
+- `codigo` es la llave que usan `usuario` (`cod_*`) y los documentos de Capella (`canal`, `tipo`, `tema`, `dispositivo`, `etiquetas`). Con él se busca el nombre legible.
+- **Se incluyen los códigos inactivos** con `activo: false`, para poder mostrar el nombre de datos que ya los usan. El dashboard **no** los ofrece como opción en los filtros. Al crear o editar interacciones (F4-01) solo se aceptan códigos activos.
+- Cada lista viene ordenada por `codigo`. En `rango_edad` ese orden va de menor a mayor edad.
+- **No incluye geografía** (`pais`, `estado`, `ciudad`). La ubicación solo aparece donde el contrato lo dice y siempre con consentimiento (`GET /api/usuarios` y `GET /api/metricas/geografia`).
+- `analista` y `admin` la pueden consultar. Los catálogos no cambian desde la API: se leen en cada petición, sin caché.
 
 ---
 
