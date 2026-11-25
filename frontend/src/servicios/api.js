@@ -65,3 +65,14 @@ export async function consultarSalud(senal) {
     throw error;
   }
 }
+
+export async function iniciarSesion({ correo, password }, senal) {
+  const datos = await peticionApi('/api/auth/login', {
+    metodo: 'POST',
+    cuerpo: { correo, password },
+    senal,
+  });
+  // La sesión queda establecida en la cookie httpOnly c360_token.
+  // Se descarta datos.token para no guardarlo nunca en el navegador.
+  return datos?.usuario ?? null;
+}
