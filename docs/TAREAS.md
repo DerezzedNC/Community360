@@ -1,6 +1,6 @@
 # Tablero de tareas
 
-Estados: `pendiente` · `en curso` · `hecho` · `bloqueada`.
+Estados: `pendiente` · `en curso` · `hecho` · `bloqueada` · `pospuesta` (se hará más adelante por decisión de Angel; no se toma mientras tanto).
 Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza el estado aquí mismo.
 
 ## Fase 3 · Autenticación
@@ -15,15 +15,26 @@ Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza
 | F3-06 | [AG] | Base del frontend: React + Vite + router, proxy de Vite `/api` y `/ws` → `localhost:8000`, layout del dashboard vacío | — | hecho |
 | F3-07 | [AG] | Pantalla de inicio de sesión: correo y contraseña, mensaje en 401, sin credenciales en el código | F3-06, F3-03 | hecho |
 | F3-08 | [AG] | Rutas protegidas: `/dashboard` consulta `GET /api/auth/me` y manda a `/login` si da 401; botón "Cerrar sesión" | F3-07 | hecho |
-| F3-09 | [AG] | Evidencias de la Fase 3 en `evidencias/fase3/`: login correcto, login fallido, acceso sin sesión redirigido, cierre de sesión, petición sin token en Postman (401) | F3-05, F3-08 | pendiente |
+| F3-09 | [AG] | Evidencias de la Fase 3 en `evidencias/fase3/`: login correcto, login fallido, acceso sin sesión redirigido, cierre de sesión, petición sin token en Postman (401). **Nota:** las capturas se toman al armar el documento | F3-05, F3-08 | pospuesta |
 
-## Fase 4 · API REST (se detalla al cerrar la Fase 3)
+## Fase 4 · API REST
+
+Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista mínima de endpoints que falta confirmar con el profesor. F4-01 (altas, cambios y bajas) sí espera esa lista.
 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | pendiente |
-| F4-02 | [CC] | Endpoints de consulta histórica y métricas | F3-04 | pendiente |
-| F4-03 | [AG] | Vistas históricas del dashboard consumiendo REST | F4-02 | pendiente |
+| F4-02a | [CC] | `GET /api/catalogos`: los 8 catálogos de TiDB | F3-04 | pendiente |
+| F4-02b | [CC] | `GET /api/usuarios` (paginado y con filtros) y `GET /api/usuarios/{id_usuario}`. `ubicacion` es `null` sin consentimiento, con prueba que lo garantice | F4-02a | pendiente |
+| F4-02c | [CC] | `docs/INDICADORES.md`, primera versión: definición y fórmula de cada dato de `/api/metricas/*`, antes de programarlo | F3-04 | pendiente |
+| F4-02d | [CC] | Métricas de TiDB: `GET /api/metricas/estatus` y `GET /api/metricas/geografia` (solo con consentimiento) | F4-02c | pendiente |
+| F4-02e | [CC] | Métricas que usan Capella: `GET /api/metricas/temas`, `/actividad`, `/plataformas` y `/resumen`. Incluye la consulta a Capella y su `503` | F4-02c, F4-02d | pendiente |
+| F4-02f | [CC] | `GET /api/cuarentena` (paginado, filtro `motivo`). Revisar antes qué campos se muestran por privacidad | F4-02e | pendiente |
+| F4-03a | [AG] | Navegación de las vistas históricas y carga de catálogos (nombres legibles y opciones de los filtros) | F3-08, F4-02a | pendiente |
+| F4-03b | [AG] | Vista de usuarios: tabla paginada, filtros y detalle. Ubicación solo si la API la da | F4-03a, F4-02b | pendiente |
+| F4-03c | [AG] | Gráficas históricas de estatus (dona) y geografía (barras) | F4-03a, F4-02d | pendiente |
+| F4-03d | [AG] | Tarjetas de resumen y gráficas históricas de plataformas, temas y actividad (mapa de calor día × hora) | F4-03a, F4-02e | pendiente |
+| F4-03e | [AG] | Vista de cuarentena: tabla paginada y filtro por motivo | F4-03a, F4-02f | pendiente |
 
 ## Fase 5 · WebSockets (se detalla al cerrar la Fase 4)
 
@@ -36,7 +47,7 @@ Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza
 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
-| F6-01 | [CC] | `docs/INDICADORES.md` con la fórmula de cada indicador | F4-02 | pendiente |
+| F6-01 | [CC] | `docs/INDICADORES.md` completo: indicadores dinámicos y cómo cambian con altas, cambios y bajas (parte de la versión de F4-02c) | F4-02e | pendiente |
 | F6-02 | [AG] | Gráficas de barras, dona y mapa de calor, diseño responsivo | F5-02, F6-01 | pendiente |
 
 ## Verificaciones pendientes

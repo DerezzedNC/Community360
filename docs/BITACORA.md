@@ -88,3 +88,10 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: `pytest` completo, 120 de 120 con la prueba `nube`. Con Newman, la colección completa pasa contra una copia de la API con cuentas falsas en memoria, y las peticiones 1 y 3 contra la API real. **Falta** el recorrido completo con las cuentas reales, que hace Angel en Postman.
 - Cómo se prueba: ver `postman/README.md` (importar, llenar variables y *Run collection*).
 - Aviso →AG: **F3-09 ya tiene sus dependencias en `hecho`.** Para las evidencias de Postman usar "2. Login fallido", "3. Sin token" y "7. Token revocado". No capturar la respuesta de Login sin tapar `token`, la consola, la pestaña Cookies ni el entorno o el `Authorization` con valores visibles.
+
+## 2026-11-25 · [CC] · F3-05 (verificada) y detalle de la Fase 4
+- Qué cambió: Angel corrió la colección completa en Postman con el entorno COMMUNITY 360 y las cuentas reales: las 10 peticiones en verde (`200`, `401`, `401`, `200`, `200`, `204`, `401`, `200`, `200`, `204`). F3-05 queda verificada. F3-09 pasa a `pospuesta` por decisión de Angel. F4-02 y F4-03 se dividieron en tareas de solo lectura (F4-02a a F4-02f y F4-03a a F4-03e).
+- Estado: con esto queda lista la parte programada de la Fase 3; solo faltan las capturas (F3-09).
+- Cómo se prueba: no aplica (solo documentos).
+- Datos revisados (solo lectura) para las tareas nuevas: 1068 usuarios, 897 con ubicación y 171 sin consentimiento y sin ubicación; 203 interacciones de 134 usuarios; 797 en cuarentena (`usuario_inexistente` 793, `fecha_anterior_ingreso` 4). En `interacciones` el id no es un campo del documento: es la llave (`META().id`).
+- Aviso →AG: F3-09 está `pospuesta`, no la tomen. La primera tarea disponible será F4-03a, cuando F4-02a esté en `hecho`. Los filtros de las vistas son consultas `GET`, no formularios de captura.
