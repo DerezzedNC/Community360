@@ -23,10 +23,10 @@ Angel (el alumno) es quien decide. Si algo no está claro o una tarea pide salir
 
 ## Git y GitHub
 
-- Repositorio remoto: `origin` (GitHub, privado), rama `master`.
-- Un commit por tarea y `git push` a `origin master` al terminarla. Antes del push, `git pull --rebase` por si el otro equipo subió algo.
+- Repositorio remoto: `origin` (GitHub, privado), rama `main`.
+- Un commit por tarea y `git push` a `origin main` al terminarla. Antes del push, `git pull --rebase` por si el otro equipo subió algo.
 - Cada commit lleva solo los archivos de tu tarea. No incluyas cambios del otro equipo que veas pendientes en la carpeta.
-- Nunca se suben `.env`, datos de origen (`etl/datos/`) ni entregas en PDF (`docs/especificacion/*.pdf`). Ya están en `.gitignore`: no los fuerces con `git add -f`.
+- Nunca se suben `.env`, datos de origen (`etl/datos/`, `*.csv`) ni entregas (`docs/especificacion/`, `*.pdf`). Ya están en `.gitignore`: no los fuerces con `git add -f`.
 - Nunca reescribas el historial ni hagas `git push --force` sin permiso de Angel.
 - Si el push pide iniciar sesión, avisa a Angel para que lo haga él en el navegador. Nunca pidas ni uses tokens en el chat.
 
