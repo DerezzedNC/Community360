@@ -19,6 +19,12 @@ dist/
 etl/salida/
 etl/install.log
 
+# Datos de origen (se quedan solo en el disco local)
+etl/datos/
+
+# Entregas y enunciados en PDF
+docs/especificacion/*.pdf
+
 # Sistema
 .DS_Store
 Thumbs.db
