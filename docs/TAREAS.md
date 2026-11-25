@@ -8,7 +8,7 @@ Toma solo tareas de tu equipo cuyas dependencias ya estén en `hecho`. Actualiza
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F3-01 | [CC] | Base del backend: estructura de `backend/`, `requirements.txt`, lectura de `.env` con pydantic-settings, conexión a TiDB y Capella, `GET /api/health`. **Nota:** pendiente verificar health 200 con Capella real (ver VER-01) | — | hecho |
-| F3-02 | [CC] | Hash con Argon2 (`pwdlib`) y script `backend/scripts/crear_admin.py` para dar de alta un `admin` y un `analista` en `usuario_admin` (pide la contraseña por consola, nunca la guarda en texto) | F3-01 | pendiente |
+| F3-02 | [CC] | Hash con Argon2 (`pwdlib`) y script `backend/scripts/crear_admin.py` para dar de alta un `admin` y un `analista` en `usuario_admin` (pide la contraseña por consola, nunca la guarda en texto) | F3-01 | hecho |
 | F3-03 | [CC] | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` según el contrato: JWT de 60 min, cookie httpOnly, revocación al salir, actualizar `ultimo_acceso` | F3-02 | pendiente |
 | F3-04 | [CC] | Proteger todo `/api/*` (excepto login y health) y permisos por rol (`analista` solo GET). Pruebas pytest: login correcto, contraseña incorrecta, sin token, token revocado, analista intentando escribir | F3-03 | pendiente |
 | F3-05 | [CC] | Colección y entorno de Postman de la Fase 3 en `postman/` | F3-04 | pendiente |

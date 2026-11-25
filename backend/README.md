@@ -23,6 +23,17 @@ Comprobar: `curl.exe -i http://localhost:8000/api/health`
 
 Si Capella está apagada, la API levanta de todos modos, `health` responde `503` y se vuelve a conectar sola cuando el cluster regresa.
 
+## Crear cuentas (admin o analista)
+
+En una ventana de PowerShell, una cuenta por ejecución:
+
+```powershell
+cd C:\cummunity360\backend
+.venv\Scripts\python -m scripts.crear_admin
+```
+
+Pide correo, nombre, rol y contraseña (mínimo 12 caracteres; no se ve al escribir). En TiDB solo se guarda el hash Argon2.
+
 ## Pruebas
 
 ```powershell

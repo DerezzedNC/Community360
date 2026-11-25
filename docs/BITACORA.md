@@ -34,3 +34,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Forma de trabajo: hasta resolver VER-01, lo que toque Capella se prueba simulándola en `backend/tests/`, y lo que falte probar con la base real se agrega a VER-01.
 - Cómo se prueba: ver `backend/README.md`. Con la API en el puerto 8000: `curl.exe -i http://localhost:8000/api/health` → por ahora `503` con `{"estado":"degradado","tidb":true,"capella":false}`.
 - Aviso →AG: no hay que cambiar nada (el contrato sigue en v0.2). Por ahora `GET /api/health` dará `503` "degradado" con `capella: false`; es lo esperado. El login (F3-03) usa solo TiDB, así que F3-07 y F3-08 no dependen de Capella. No pongan datos de ejemplo en el dashboard para suplir a Capella.
+
+## 2026-11-24 · [CC] · F3-02
+- Qué cambió: `backend/app/seguridad.py` (hash Argon2id y formato del correo), `backend/app/repositorios/usuario_admin.py` (buscar e insertar) y `backend/scripts/crear_admin.py` (alta por consola, contraseña oculta de 12 caracteres como mínimo). Angel creó las dos cuentas: `id_admin` 1 (`admin`) y 2 (`analista`).
+- Estado: comprobado en TiDB en solo lectura: 2 cuentas activas, hash Argon2id, correos y hashes distintos. 43 pruebas pasan (`pytest` completo).
+- Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_seguridad.py tests/test_crear_admin.py`. Para otra cuenta: `.venv\Scripts\python -m scripts.crear_admin` en una ventana de PowerShell, desde `backend/`.
+- Aviso →AG: no hay que cambiar nada. Los correos de las cuentas van en minúsculas y sin acentos ni ñ. Las credenciales las tiene Angel; no se escriben en el código ni en las evidencias.
