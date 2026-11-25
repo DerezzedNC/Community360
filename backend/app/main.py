@@ -3,7 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import pymysql
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.config import Settings, get_settings
 from app.db.capella import Capella
 from app.db.tidb import TiDB
+from app.dependencias import proteger
 from app.routers import auth, health
 from app.tokens import Tokens
 
@@ -49,7 +50,13 @@ def create_app(
 ) -> FastAPI:
     """Sin argumentos usa backend/.env. Las pruebas pasan su propia configuración."""
     settings = settings or get_settings()
-    app = FastAPI(title="COMMUNITY 360", version="0.3", lifespan=ciclo_de_vida)
+    app = FastAPI(
+        title="COMMUNITY 360",
+        version="0.4",
+        lifespan=ciclo_de_vida,
+        # Protegido por defecto: las rutas públicas están en dependencias.py
+        dependencies=[Depends(proteger)],
+    )
     app.state.settings = settings
     app.state.tidb = tidb or TiDB(settings)
     app.state.capella = capella or Capella(settings)

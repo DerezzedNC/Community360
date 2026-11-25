@@ -1,6 +1,6 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.3** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
+**Versión 0.4** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
 Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cambio sube la versión y se anota en `docs/BITACORA.md`.
 
 ## Generalidades
@@ -13,6 +13,8 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 
 ### Autenticación en cada petición
 
+Todo `/api/*` pide sesión, menos `GET /api/health` y `POST /api/auth/login`. Una ruta nueva queda protegida aunque no se indique nada.
+
 El backend acepta el token de dos formas (en este orden):
 
 1. Encabezado `Authorization: Bearer <token>`. Lo usa Postman. Si viene, es el único que cuenta, aunque esté vacío o no sea válido: en ese caso responde `401` sin mirar la cookie.
@@ -21,14 +23,22 @@ El backend acepta el token de dos formas (en este orden):
 | Código | Cuándo |
 |---|---|
 | 401 | Sin token, token vencido, firma inválida o token revocado por logout: `{"detail": "Sesión no válida o vencida"}` |
-| 403 | Token válido pero el rol no tiene permiso (por ejemplo, `analista` intentando escribir) |
+| 403 | Sesión válida pero el rol no tiene permiso (por ejemplo, `analista` intentando escribir): `{"detail": "Tu rol no permite esta operación"}` |
+
+Orden de las revisiones: `401`, después `403` y al final `404` o `422` por los datos. Dos excepciones: un JSON mal formado puede dar `422` antes que `401`, y una ruta que no existe da `404` (o `405` si existe con otro método) sin pedir sesión.
 
 ### Roles
 
 | Rol | Puede |
 |---|---|
 | `admin` | Todo lo de `analista` + crear, editar y borrar interacciones |
-| `analista` | Solo consultas (`GET`) y el WebSocket |
+| `analista` | Solo consultas (`GET`), cerrar su sesión (`POST /api/auth/logout`) y el WebSocket |
+
+Decisión (F3-04), para cuentas que cambian mientras su token sigue vigente (60 min como máximo):
+
+- **Las lecturas (`GET`) confían en el token**, para no sumar una consulta a TiDB en cada petición del dashboard. Excepción: `GET /api/auth/me`, que siempre lee TiDB. Una cuenta desactivada puede seguir consultando hasta que su token venza.
+- **Las escrituras (`POST`, `PUT`, `PATCH`, `DELETE`) revisan además en TiDB** que la cuenta siga activa y sea `admin`: `401` si ya no existe o está inactiva, `403` si ya no es `admin`, `503` si TiDB no responde. `logout` no hace esta revisión.
+- El token también debe ser de `admin`: si un `analista` pasa a ser `admin`, tiene que iniciar sesión otra vez para poder escribir.
 
 ---
 

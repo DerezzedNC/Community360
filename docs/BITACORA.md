@@ -58,3 +58,21 @@ Agrega las entradas al final, la más reciente abajo. Formato:
   - `401` → mostrar el `detail` tal cual. `503` → servicio no disponible, no es error de contraseña. `422` → `detail` es una **lista**, no un texto; con `peticionApi` actual sale "Error HTTP 422", así que la pantalla debe poner su propio mensaje (por ejemplo, revisar el formato del correo).
   - El login tarda unos 2 s con TiDB real: deshabilitar el botón mientras responde.
   - F3-08: `GET /api/auth/me` da `401` si no hay sesión; un `503` no significa sesión cerrada, así que no hay que mandar a `/login`.
+
+## 2026-11-25 · [CC] · F3-03 (verificación con cuentas reales)
+- Qué cambió: `postman/README.md` explica que hay que elegir "No environment" (un entorno ajeno con su propia `token` pisaba la de la colección). A petición de Angel, la cuenta `id_admin` 2 (analista, contraseña olvidada, sin accesos) quedó con `activo = FALSE`; no se borró. Las cuentas en uso son `id_admin` 1 (admin) y 30001 (analista).
+- Estado: Angel probó en Postman con admin y con analista: Login `200`, Me `200`, Logout `204`, Me después de logout `401` y contraseña incorrecta `401`. Comprobado en TiDB en solo lectura: `ultimo_acceso` se actualizó en las dos cuentas. F3-03 queda verificada con cuentas reales.
+- Cómo se prueba: ver `postman/README.md`.
+- Aviso →AG: `id_admin` no es consecutivo (TiDB puede saltar números, por ejemplo 2 → 30001); no suponer un orden ni un tamaño.
+
+
+## 2026-11-25 · [AG] · F3-07
+- Qué cambió: pantalla de inicio de sesión en `frontend/src/paginas/PaginaLogin.jsx`, estilos en `global.css` y función `iniciarSesion` en `frontend/src/servicios/api.js` consumiendo `POST /api/auth/login` con `credentials: "include"`, sin encabezado `Authorization`, sin guardar `token` en cliente y sin `console.*`. Maneja `200` (redirige a `/dashboard`), `401` (muestra `detail` exacto), `422` (mensaje de formato en español) y `503`/caída de red (aviso diferenciado de servicio).
+- Cómo se prueba: con la API en el puerto `8000` y `npm run dev` en `frontend/`, abrir `http://localhost:5173/login`, probar credenciales inválidas (`401`) y válidas (`200` → `/dashboard`). Verificado por Angel con la API real.
+- PETICIÓN →CC / →AG (si aplica): ninguna.
+
+## 2026-11-25 · [CC] · F3-04
+- Qué cambió: dependencia `proteger` (`backend/app/dependencias.py`) aplicada a toda la app: todo `/api/*` pide sesión menos `GET /api/health` y `POST /api/auth/login`; `analista` solo lee y cierra su sesión. **Contrato v0.4**: cuerpo del `403`, orden `401` → `403` → `404`/`422` y la decisión de que las escrituras revisan en TiDB que la cuenta siga activa y sea `admin`, mientras que las lecturas confían en el token.
+- Estado: `pytest` completo, 113 de 113 con la prueba `nube`. Capella volvió a responder al autorizar la IP actual: `GET /api/health` dio `200` con las dos bases. El `403` se probó con rutas que existen solo en las pruebas; en Postman se verá hasta F4-01, cuando haya endpoints de escritura.
+- Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_proteccion.py`. Con la API levantada y sin sesión: `curl.exe -i http://localhost:8000/api/auth/me` → `401`. **Hay que reiniciar la API** para que tome este cambio.
+- Aviso →AG: no cambia nada para F3-08. El `401` es igual en cualquier ruta protegida (`{"detail": "Sesión no válida o vencida"}`): manden a `/login` ante ese `401` en cualquier petición, no solo en `me`. El `403` no es sesión cerrada: no hay que mandar a `/login`. Una ruta que no existe da `404` sin pedir sesión.
