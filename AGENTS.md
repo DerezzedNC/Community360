@@ -21,6 +21,15 @@ Angel (el alumno) es quien decide. Si algo no está claro o una tarea pide salir
 2. Agrega una entrada al final de `docs/BITACORA.md`: fecha, prefijo, tarea, qué cambió, cómo se prueba y si el otro equipo necesita hacer algo.
 3. Si usas git: un commit por tarea, con el mensaje `[CC] F3-01 ...` o `[AG] F3-06 ...`.
 
+## Git y GitHub
+
+- Repositorio remoto: `origin` (GitHub, privado), rama `master`.
+- Un commit por tarea y `git push` a `origin master` al terminarla. Antes del push, `git pull --rebase` por si el otro equipo subió algo.
+- Cada commit lleva solo los archivos de tu tarea. No incluyas cambios del otro equipo que veas pendientes en la carpeta.
+- Nunca se suben `.env`, datos de origen (`etl/datos/`) ni entregas en PDF (`docs/especificacion/*.pdf`). Ya están en `.gitignore`: no los fuerces con `git add -f`.
+- Nunca reescribas el historial ni hagas `git push --force` sin permiso de Angel.
+- Si el push pide iniciar sesión, avisa a Angel para que lo haga él en el navegador. Nunca pidas ni uses tokens en el chat.
+
 ## Reglas de colaboración
 
 - **No edites la carpeta del otro equipo.** Si necesitas un cambio allá, escríbelo en `docs/BITACORA.md` con la etiqueta `PETICIÓN →CC` o `PETICIÓN →AG` y sigue con otra tarea.
