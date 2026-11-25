@@ -1,22 +1,37 @@
 {
   "info": {
     "name": "COMMUNITY 360",
-    "description": "Colección de la API. Contrato: docs/CONTRATO_API.md.\n\nAntes de usar Login, escribe correo y password en la pestaña Variables de la colección, solo en la columna del valor local (\"Current value\" o \"Value\" sin compartir). No los guardes en el archivo ni los compartas.",
+    "description": "Colección de la API. Contrato: docs/CONTRATO_API.md. Instrucciones: postman/README.md.\n\nUsa el entorno COMMUNITY 360. Las contraseñas van solo en el valor local del entorno.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Otro entorno podría pisar las variables o mandar datos a otro servidor",
+          "if (pm.environment.name !== 'COMMUNITY 360') {",
+          "    pm.test('Elige el entorno COMMUNITY 360 (arriba a la derecha).', () => pm.expect.fail('Petición no enviada'));",
+          "    pm.execution.skipRequest();",
+          "}"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "Fase 3 · Autenticación",
       "item": [
         {
-          "name": "Health",
+          "name": "1. Health",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 u 503 según el contrato', () => pm.expect(pm.response.code).to.be.oneOf([200, 503]));",
+                  "pm.test('200 o 503', () => pm.expect(pm.response.code).to.be.oneOf([200, 503]));",
                   "pm.test('El estado coincide con las bases', () => {",
                   "    const r = pm.response.json();",
                   "    const todoBien = r.tidb && r.capella;",
@@ -28,28 +43,40 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/health",
-              "host": ["{{base_url}}"],
-              "path": ["api", "health"]
-            }
+              "raw": "{{c360_base_url}}/api/health",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Ruta pública. 200 si TiDB y Capella responden; 503 si falta alguna."
           },
           "response": []
         },
         {
-          "name": "Login",
+          "name": "2. Login fallido",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
-                  "pm.variables.set('correo_json', JSON.stringify(pm.variables.get('correo') || ''));",
-                  "pm.variables.set('password_json', JSON.stringify(pm.variables.get('password') || ''));"
+                  "const correo = pm.environment.get('c360_correo_admin');",
+                  "if (!correo) {",
+                  "    pm.test('Llena c360_correo_admin en el entorno COMMUNITY 360 (valor local).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "pm.variables.set('c360_correo_json', JSON.stringify(correo));",
+                  "pm.variables.set('c360_password_json', JSON.stringify('contraseña-inventada-000'));"
                 ]
               }
             },
@@ -58,56 +85,177 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 con sesión', () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) {",
-                  "    const r = pm.response.json();",
-                  "    pm.test('Trae el usuario y el token', () => {",
-                  "        pm.expect(r.tipo).to.eql('bearer');",
-                  "        pm.expect(r.expira_en).to.eql(3600);",
-                  "        pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
-                  "    });",
-                  "    pm.test('No devuelve la contraseña ni su hash', () => {",
-                  "        pm.expect(r.usuario).to.not.have.any.keys('password', 'password_hash');",
-                  "    });",
-                  "    pm.collectionVariables.set('token', r.token);",
-                  "}"
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('Mensaje del contrato', () => pm.expect(pm.response.json()).to.eql({ detail: 'Correo o contraseña incorrectos' }));",
+                  "pm.test('No entrega token', () => pm.expect(pm.response.json()).to.not.have.property('token'));"
                 ]
               }
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/login",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Evidencia F3-09. Correo del admin con una contraseña inventada: 401.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"correo\": {{correo_json}},\n  \"password\": {{password_json}}\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "login"]
+              "raw": "{\n  \"correo\": {{c360_correo_json}},\n  \"password\": {{c360_password_json}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
         },
         {
-          "name": "Me",
+          "name": "3. Sin token",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 con sesión o 401 sin ella', () => pm.expect(pm.response.code).to.be.oneOf([200, 401]));",
-                  "pm.test('El cuerpo corresponde al código', () => {",
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('Mensaje del contrato', () => pm.expect(pm.response.json()).to.eql({ detail: 'Sesión no válida o vencida' }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/me",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Evidencia F3-09. Sin Authorization y con las cookies desactivadas: 401."
+          },
+          "response": [],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "4. Login admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const correo = pm.environment.get('c360_correo_admin');",
+                  "const password = pm.environment.get('c360_password_admin');",
+                  "if (!correo || !password) {",
+                  "    pm.test('Llena c360_correo_admin y c360_password_admin en el entorno COMMUNITY 360 (valor local).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "// Si el login falla, que no quede un token anterior",
+                  "pm.environment.set('c360_token', '');",
+                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
+                  "pm.variables.set('c360_correo_json', JSON.stringify(correo));",
+                  "pm.variables.set('c360_password_json', JSON.stringify(password));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token y usuario con rol admin', () => {",
                   "    const r = pm.response.json();",
-                  "    if (pm.response.code === 200) {",
-                  "        pm.expect(r).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
-                  "    } else {",
-                  "        pm.expect(r.detail).to.eql('Sesión no válida o vencida');",
-                  "    }",
+                  "    pm.expect(r.tipo).to.eql('bearer');",
+                  "    pm.expect(r.expira_en).to.eql(3600);",
+                  "    pm.expect(r.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.usuario.rol).to.eql('admin');",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('c360_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/login",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda el token en c360_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": {{c360_correo_json}},\n  \"password\": {{c360_password_json}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Me (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Usuario con rol admin, sin contraseña ni hash', () => {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.rol).to.eql('admin');",
                   "});"
                 ]
               }
@@ -116,31 +264,42 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "me"]
-            }
+              "raw": "{{c360_base_url}}/api/auth/me",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Cuenta de la sesión actual."
           },
           "response": []
         },
         {
-          "name": "Logout",
+          "name": "6. Logout (admin)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('204 con sesión o 401 sin ella', () => pm.expect(pm.response.code).to.be.oneOf([204, 401]));",
-                  "pm.test('El 204 no trae cuerpo', () => {",
-                  "    if (pm.response.code === 204) pm.expect(pm.response.text()).to.eql('');",
-                  "});",
-                  "// No se borra la variable token: así Me demuestra que el token revocado da 401"
+                  "pm.test('204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));",
+                  "// c360_token no se borra: la petición \"Token revocado\" lo necesita"
                 ]
               }
             }
@@ -148,25 +307,264 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "logout"]
+              "raw": "{{c360_base_url}}/api/auth/logout",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revoca el token. c360_token se conserva para la petición 7."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Token revocado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const token = pm.environment.get('c360_token');",
+                  "if (!token) {",
+                  "    pm.test('Primero envía Login admin y Logout: c360_token está vacío.', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "// Se lee cuándo vence para demostrar que el 401 no es por tiempo",
+                  "const partes = token.split('.');",
+                  "const datos = JSON.parse(atob(partes[1].replace(/-/g, '+').replace(/_/g, '/')));",
+                  "pm.variables.set('c360_exp', datos.exp);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('Mensaje del contrato', () => pm.expect(pm.response.json()).to.eql({ detail: 'Sesión no válida o vencida' }));",
+                  "pm.test('El token todavía no vence: el 401 es por el logout', () => {",
+                  "    pm.expect(Number(pm.variables.get('c360_exp'))).to.be.above(Date.now() / 1000);",
+                  "});"
+                ]
+              }
             }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/me",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Evidencia F3-09. El mismo token después del logout: 401 aunque no haya vencido."
+          },
+          "response": [],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "8. Login analista",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const correo = pm.environment.get('c360_correo_analista');",
+                  "const password = pm.environment.get('c360_password_analista');",
+                  "if (!correo || !password) {",
+                  "    pm.test('Llena c360_correo_analista y c360_password_analista en el entorno COMMUNITY 360 (valor local).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "// Si el login falla, que no quede un token anterior",
+                  "pm.environment.set('c360_token', '');",
+                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
+                  "pm.variables.set('c360_correo_json', JSON.stringify(correo));",
+                  "pm.variables.set('c360_password_json', JSON.stringify(password));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token y usuario con rol analista', () => {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r.tipo).to.eql('bearer');",
+                  "    pm.expect(r.expira_en).to.eql(3600);",
+                  "    pm.expect(r.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.usuario.rol).to.eql('analista');",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('c360_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/login",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Guarda el token en c360_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": {{c360_correo_json}},\n  \"password\": {{c360_password_json}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9. Me (analista)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Usuario con rol analista, sin contraseña ni hash', () => {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.rol).to.eql('analista');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/me",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Cuenta de la sesión actual."
+          },
+          "response": []
+        },
+        {
+          "name": "10. Logout (analista)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));",
+                  "// c360_token no se borra: la petición \"Token revocado\" lo necesita"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/logout",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "El analista sí puede cerrar su sesión."
           },
           "response": []
         }
       ]
     }
-  ],
-  "variable": [
-    { "key": "base_url", "value": "http://localhost:8000" },
-    { "key": "correo", "value": "" },
-    { "key": "password", "value": "" },
-    { "key": "token", "value": "" }
   ]
 }

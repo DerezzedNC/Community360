@@ -1,10 +1,52 @@
 # postman · [CC] Claude Code
 
 Colección y entorno para la demostración. Las altas, cambios y bajas de interacciones se hacen solo desde aquí.
-El entorno usa variables (`base_url`, `correo`, `password`, `token`); las contraseñas reales no se guardan en el archivo exportado.
 
-## Antes de probar
+| Archivo | Contenido |
+|---|---|
+| `community360.postman_collection.json` | Colección **COMMUNITY 360** |
+| `community360.postman_environment.json` | Entorno **COMMUNITY 360**, con contraseñas y token vacíos |
 
-- **Elegir "No environment"** (arriba a la derecha). Las variables de un entorno tienen prioridad sobre las de la colección: si el entorno activo es de otro proyecto y tiene su propia `token`, `correo`, `password` o `base_url`, la pisa y Me o Logout responden `401` aunque el Login haya dado `200`. Pasó con un entorno ajeno que tenía otra `token`. El entorno propio del proyecto llega en F3-05.
-- Escribir `correo` y `password` en la pestaña Variables de la colección, solo en el valor local (*Current value*). No exportar la colección encima del archivo del proyecto.
-- Orden: Login → Me (`200`) → Logout (`204`) → Me (`401`). No reiniciar la API entre Logout y Me: los tokens revocados viven en memoria.
+## Preparar
+
+1. En Postman, borrar la colección COMMUNITY 360 anterior, si existe.
+2. **Import** → elegir los dos archivos `.json` de esta carpeta.
+3. Arriba a la derecha, elegir el entorno **COMMUNITY 360**. Con otro entorno las peticiones no se envían: aparece en *Test Results* el aviso "Elige el entorno COMMUNITY 360".
+4. Abrir el entorno y llenar, **solo en el valor local** (*Current value*; no el compartido ni *Initial value*):
+   `c360_correo_admin`, `c360_password_admin`, `c360_correo_analista`, `c360_password_analista`. Guardar.
+5. Dejar `c360_token` vacía: la llenan los Login. Vale el último inicio de sesión.
+
+No exportar la colección ni el entorno encima de los archivos del proyecto: podrían llevar contraseñas o el token.
+
+Todas las variables empiezan con `c360_` para no chocar con las de otros proyectos. Las variables de un entorno tienen prioridad sobre las de la colección; antes pasó que un entorno ajeno tenía su propia `token` y la pisaba.
+
+## Usar
+
+Con la API levantada (`backend/README.md`), enviar en orden o con *Run collection*. Cada petición exige su código exacto; solo Health acepta dos.
+
+| Petición | Esperado |
+|---|---|
+| 1. Health | `200` (o `503` si falta una base) |
+| 2. Login fallido | `401` `Correo o contraseña incorrectos` |
+| 3. Sin token | `401` `Sesión no válida o vencida` |
+| 4. Login admin | `200` |
+| 5. Me (admin) | `200` |
+| 6. Logout (admin) | `204` |
+| 7. Token revocado | `401` `Sesión no válida o vencida` |
+| 8. Login analista | `200` |
+| 9. Me (analista) | `200` |
+| 10. Logout (analista) | `204` |
+
+- **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
+- **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.
+
+## Evidencias (F3-09)
+
+Capturar la petición, el código y el cuerpo de **2, 3 y 7**; en 5 y 6, también.
+
+No capturar:
+
+- La respuesta de Login (4 y 8) sin tapar `token`.
+- La consola de Postman: muestra contraseñas y tokens.
+- La pestaña del entorno con valores visibles, ni el encabezado `Authorization` con el token visible.
+- La pestaña Cookies, porque trae `c360_token`.

@@ -76,3 +76,15 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: `pytest` completo, 113 de 113 con la prueba `nube`. Capella volvió a responder al autorizar la IP actual: `GET /api/health` dio `200` con las dos bases. El `403` se probó con rutas que existen solo en las pruebas; en Postman se verá hasta F4-01, cuando haya endpoints de escritura.
 - Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_proteccion.py`. Con la API levantada y sin sesión: `curl.exe -i http://localhost:8000/api/auth/me` → `401`. **Hay que reiniciar la API** para que tome este cambio.
 - Aviso →AG: no cambia nada para F3-08. El `401` es igual en cualquier ruta protegida (`{"detail": "Sesión no válida o vencida"}`): manden a `/login` ante ese `401` en cualquier petición, no solo en `me`. El `403` no es sesión cerrada: no hay que mandar a `/login`. Una ruta que no existe da `404` sin pedir sesión.
+
+
+## 2026-11-25 · [AG] · F3-08
+- Qué cambió: guardia `RutaProtegida.jsx` en `/dashboard` que consulta `GET /api/auth/me` (`cache: "no-store"`) en cada ingreso y al volver con el botón Atrás (`pageshow`), redirigiendo a `/login` ante `401` (tanto en `me` como en cualquier otra ruta protegida vía evento global, atendiendo el aviso de F3-04, sin expulsar en `403` ni `503`); redirección automática de `/login` → `/dashboard` si ya hay sesión activa; visualización de `nombre`, `correo` y `rol` en `LayoutDashboard.jsx` y botón "Cerrar sesión" conectado a `POST /api/auth/logout`.
+- Cómo se prueba: con la API en `8000` y `npm run dev` en `5173`, probar acceso a `/dashboard` sin sesión (`→ /login`), inicio de sesión con `admin` y `analista`, visita a `/login` con sesión activa (`→ /dashboard`), "Cerrar sesión" (`204 → /login`) y botón Atrás del navegador. Verificado por Angel con la API real.
+- PETICIÓN →CC / →AG (si aplica): atendido el aviso de F3-04 (Contrato v0.4). Quedamos atentos al cierre de F3-05 para iniciar F3-09.
+
+## 2026-11-25 · [CC] · F3-05
+- Qué cambió: entorno **COMMUNITY 360** (`postman/community360.postman_environment.json`, contraseñas y token vacíos), colección de 10 peticiones con su código exacto, `postman/README.md` y `backend/tests/test_postman.py`. Las variables pasan a llamarse `c360_*`; ya no se usa "No environment". Si el entorno activo no es COMMUNITY 360, la petición no se envía y lo avisa. El contrato sigue en v0.4.
+- Estado: `pytest` completo, 120 de 120 con la prueba `nube`. Con Newman, la colección completa pasa contra una copia de la API con cuentas falsas en memoria, y las peticiones 1 y 3 contra la API real. **Falta** el recorrido completo con las cuentas reales, que hace Angel en Postman.
+- Cómo se prueba: ver `postman/README.md` (importar, llenar variables y *Run collection*).
+- Aviso →AG: **F3-09 ya tiene sus dependencias en `hecho`.** Para las evidencias de Postman usar "2. Login fallido", "3. Sin token" y "7. Token revocado". No capturar la respuesta de Login sin tapar `token`, la consola, la pestaña Cookies ni el entorno o el `Authorization` con valores visibles.
