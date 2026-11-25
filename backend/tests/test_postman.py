@@ -9,7 +9,8 @@ from app.main import create_app
 from tests.conftest import BaseFalsa
 
 POSTMAN = Path(__file__).resolve().parents[2] / "postman"
-LOCALES = {"c360_correo_json", "c360_password_json", "c360_exp"}  # las crean los scripts
+# Las crean los scripts de la colección; no van en el entorno
+LOCALES = {"c360_correo_json", "c360_password_json", "c360_exp", "c360_id_sin_consentimiento"}
 SECRETAS = {"c360_password_admin", "c360_password_analista", "c360_token"}
 
 
@@ -65,9 +66,13 @@ def test_variables_usadas_y_declaradas_coinciden(coleccion, variables):
 
 def test_hay_una_peticion_por_endpoint(coleccion, settings_prueba):
     app = create_app(settings_prueba, BaseFalsa(), BaseFalsa())
-    endpoints = {(m.upper(), r) for r, ms in app.openapi()["paths"].items() for m in ms}
+    # Un parámetro de ruta ({id_usuario} en FastAPI, {{variable}} en Postman) cuenta como "{}"
+    def normalizar(ruta):
+        return re.sub(r"\{\{[^}]+\}\}|\{[^}]+\}", "{}", ruta)
+
+    endpoints = {(m.upper(), normalizar(r)) for r, ms in app.openapi()["paths"].items() for m in ms}
     en_postman = {
-        (i["request"]["method"], "/" + "/".join(i["request"]["url"]["path"]))
+        (i["request"]["method"], normalizar("/" + "/".join(i["request"]["url"]["path"])))
         for i in peticiones(coleccion)
     }
     assert en_postman == endpoints
@@ -91,10 +96,25 @@ def test_fase_4_abre_su_propia_sesion(coleccion):
     [fase4] = [c for c in coleccion["item"] if c["name"].startswith("Fase 4")]
     nombres = [i["name"] for i in peticiones(fase4)]
     assert nombres[0] == "11. Login analista"
-    assert nombres[-1] == "13. Logout (analista)"
-    assert "12. Catálogos" in nombres
-    catalogos = por_nombre(coleccion, "Catálogos")["request"]
-    assert "{{c360_token}}" in json.dumps(catalogos["auth"])
+    assert nombres[-1] == "17. Logout (analista)"
+    # Numeración seguida, sin huecos, después de la Fase 3
+    assert [int(n.split(".")[0]) for n in nombres] == list(range(11, 11 + len(nombres)))
+    for texto in ("Catálogos", "Usuarios (página 1)", "Usuarios filtrados", "Usuario sin consentimiento"):
+        assert "{{c360_token}}" in json.dumps(por_nombre(coleccion, texto)["request"]["auth"])
+
+
+def test_usuario_sin_consentimiento_va_despues_de_la_lista(coleccion):
+    nombres = [i["name"] for i in peticiones(coleccion)]
+    assert nombres.index("13. Usuarios (página 1)") < nombres.index("15. Usuario sin consentimiento")
+    detalle = por_nombre(coleccion, "Usuario sin consentimiento")
+    assert detalle["request"]["url"]["path"] == ["api", "usuarios", "{{c360_id_sin_consentimiento}}"]
+    assert "pm.execution.skipRequest()" in json.dumps(detalle["event"])
+
+
+def test_limite_fuera_de_rango_espera_422(coleccion):
+    item = por_nombre(coleccion, "Límite fuera de rango")
+    assert item["request"]["url"]["query"] == [{"key": "limite", "value": "201"}]
+    assert "have.status(422)" in json.dumps(item["event"])
 
 
 def test_la_coleccion_exige_su_entorno(coleccion):

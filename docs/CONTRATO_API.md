@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.5** (Fase 3 cerrada; en la Fase 4 ya está definido `GET /api/catalogos`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+**Versión 0.6** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos` y `GET /api/usuarios`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
 
 | Versión | Cambio |
 |---|---|
+| 0.6 | `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` definidos; reglas generales de paginación (`422` fuera de rango) y de privacidad (nunca coordenadas) (F4-02b) |
 | 0.5 | `GET /api/catalogos` definido: formato, orden, códigos inactivos con `activo: false` y sin geografía (F4-02a) |
 | 0.4 | Protección de `/api/*`, cuerpo del `403` y permisos por rol (F3-04) |
 Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cambio sube la versión y se anota en `docs/BITACORA.md`.
@@ -15,6 +16,18 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 - Fechas en ISO 8601 y UTC: `2026-10-28T16:59:03Z`.
 - Errores siempre con la forma `{"detail": "mensaje"}`. Los de validación (422) usan el formato de FastAPI, pero cada error trae solo `type`, `loc` y `msg`: nunca se devuelve lo que envió el cliente.
 - Si TiDB no responde, cualquier ruta que la necesite contesta `503` → `{"detail": "Base de datos no disponible"}`. `GET /api/health` tiene su propio formato.
+
+### Paginación (todas las listas)
+
+- Parámetros `pagina` (desde 1; por omisión 1) y `limite` (de 1 a 200; por omisión 50).
+- `pagina` menor a 1, `limite` menor a 1 o mayor a 200, o un valor que no sea entero → `422`. **No se recortan en silencio.**
+- Respuesta: `{"total": <filas que cumplen los filtros>, "pagina": 1, "limite": 50, "datos": [...]}`.
+- Una página después de la última responde `200` con `datos: []` y el `total` real.
+
+### Privacidad (todas las rutas)
+
+- Un usuario con `consentimiento_datos = FALSE` **nunca** tiene ubicación en una respuesta: `ubicacion` es `null`, aunque existiera una fila suya en `ubicacion_usuario`. Ninguna ruta permite filtrar ni ordenar por ubicación.
+- **La API nunca devuelve coordenadas** (`latitud`, `longitud`), ni siquiera de usuarios con consentimiento. La ubicación llega como máximo hasta ciudad.
 
 ### Autenticación en cada petición
 
@@ -117,8 +130,8 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 
 | Ruta | Devuelve |
 |---|---|
-| `GET /api/usuarios` | Padrón paginado. Filtros: `estatus`, `plataforma`, `especie`, `interes`. Sin ubicación para quien no dio consentimiento |
-| `GET /api/usuarios/{id_usuario}` | Un usuario; `ubicacion` es `null` si no dio consentimiento |
+| `GET /api/usuarios` | Padrón paginado. **Definido en v0.6**: ver abajo |
+| `GET /api/usuarios/{id_usuario}` | Un usuario. **Definido en v0.6**: ver abajo |
 | `GET /api/catalogos` | Los 8 catálogos de TiDB. **Definido en v0.5**: ver abajo |
 | `GET /api/metricas/resumen` | Totales e indicadores principales (ver `docs/INDICADORES.md`) |
 | `GET /api/metricas/estatus` | Usuarios por estatus (activo, en riesgo, inactivo) |
@@ -157,6 +170,52 @@ Reglas:
 - Cada lista viene ordenada por `codigo`. En `rango_edad` ese orden va de menor a mayor edad.
 - **No incluye geografía** (`pais`, `estado`, `ciudad`). La ubicación solo aparece donde el contrato lo dice y siempre con consentimiento (`GET /api/usuarios` y `GET /api/metricas/geografia`).
 - `analista` y `admin` la pueden consultar. Los catálogos no cambian desde la API: se leen en cada petición, sin caché.
+
+### `GET /api/usuarios` (requiere sesión, ambos roles) · v0.6
+
+Padrón de TiDB, paginado como dice [Paginación](#paginación-todas-las-listas) y ordenado por `id_usuario`.
+
+Filtros opcionales, combinables (se cumplen todos a la vez):
+
+| Parámetro | Valores | Si no es válido |
+|---|---|---|
+| `estatus` | `activo`, `en_riesgo`, `inactivo` | `422` |
+| `plataforma` | `codigo` de `plataforma` | `422` si no tiene formato de código (`^[a-z0-9_]+$`, hasta 30 caracteres) |
+| `especie` | `codigo` de `especie` | igual |
+| `interes` | `codigo` de `interes` | igual |
+
+Un código con formato válido que no existe da `200` con `total: 0`. Los códigos inactivos se aceptan como filtro. Un parámetro que no está en la tabla se ignora.
+
+`200`:
+```json
+{
+  "total": 1068, "pagina": 1, "limite": 50,
+  "datos": [
+    {
+      "id_usuario": "U000001", "alias": "...", "fecha_ingreso": "2022-01-01",
+      "cod_rango_edad": "25_31", "cod_especie": "lobo", "cod_interes": "arte_digital", "cod_plataforma": "discord",
+      "es_artista": true, "mensajes_30d": 12, "reacciones_30d": 40, "eventos_asistidos": 1, "comisiones_compradas": 0,
+      "sentimiento_promedio": 0.412, "ultima_actividad": "2026-11-08", "estatus": "activo",
+      "consentimiento_datos": true, "es_atipico": false,
+      "ubicacion": { "pais": "México", "estado": "Yucatán", "ciudad": "Mérida", "zona_horaria": "America/Merida" }
+    },
+    { "id_usuario": "U000002", "...": "...", "consentimiento_datos": false, "ubicacion": null }
+  ]
+}
+```
+
+- Los campos se llaman como las columnas de TiDB. Los `cod_*` se traducen a nombre con `GET /api/catalogos`.
+- `fecha_ingreso` y `ultima_actividad` son fechas sin hora (`AAAA-MM-DD`). `sentimiento_promedio` es número entre -1 y 1, o `null`.
+- `ubicacion` es `null` si `consentimiento_datos` es `false` (ver [Privacidad](#privacidad-todas-las-rutas)). Nunca trae `latitud` ni `longitud`.
+- No se devuelven `creado_en` ni `actualizado_en` (control interno del ETL).
+- `401` sin sesión, `422` por un parámetro inválido, `503` si TiDB no responde.
+
+### `GET /api/usuarios/{id_usuario}` (requiere sesión, ambos roles) · v0.6
+
+- `200` → el mismo objeto que cada elemento de `datos` en la lista, con las mismas reglas de ubicación.
+- `404` → `{"detail": "Usuario no encontrado"}`.
+- `422` → `id_usuario` no tiene el formato `U` + 6 a 9 dígitos (por ejemplo `U000001`).
+- `401` sin sesión, `503` si TiDB no responde.
 
 ---
 

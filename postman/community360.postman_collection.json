@@ -705,7 +705,279 @@
           "response": []
         },
         {
-          "name": "13. Logout (analista)",
+          "name": "13. Usuarios (página 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const llaves = ['id_usuario', 'alias', 'fecha_ingreso', 'cod_rango_edad', 'cod_especie', 'cod_interes', 'cod_plataforma', 'es_artista', 'mensajes_30d', 'reacciones_30d', 'eventos_asistidos', 'comisiones_compradas', 'sentimiento_promedio', 'ultima_actividad', 'estatus', 'consentimiento_datos', 'es_atipico', 'ubicacion'];",
+                  "function revisarUsuario(u) {",
+                  "    pm.expect(u).to.have.all.keys(llaves);",
+                  "    if (u.consentimiento_datos) {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.have.all.keys('pais', 'estado', 'ciudad', 'zona_horaria');",
+                  "    } else {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.eql(null);",
+                  "    }",
+                  "}",
+                  "pm.test('Nunca hay coordenadas', () => {",
+                  "    pm.expect(pm.response.text()).to.not.include('latitud');",
+                  "    pm.expect(pm.response.text()).to.not.include('longitud');",
+                  "});",
+                  "pm.test('Paginación del contrato', () => {",
+                  "    pm.expect(r).to.have.all.keys('total', 'pagina', 'limite', 'datos');",
+                  "    pm.expect(r.pagina).to.eql(1);",
+                  "    pm.expect(r.limite).to.eql(50);",
+                  "    pm.expect(r.datos.length).to.be.at.most(50);",
+                  "});",
+                  "pm.test('Sin consentimiento, ubicacion es null', () => r.datos.forEach(revisarUsuario));",
+                  "// Para la petición 15: un usuario sin consentimiento de esta página",
+                  "const sinConsentimiento = r.datos.find(u => !u.consentimiento_datos);",
+                  "pm.variables.set('c360_id_sin_consentimiento', sinConsentimiento ? sinConsentimiento.id_usuario : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/usuarios?pagina=1&limite=50",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Padrón paginado. Los usuarios sin consentimiento llegan con ubicacion: null. Nunca hay latitud ni longitud."
+          },
+          "response": []
+        },
+        {
+          "name": "14. Usuarios filtrados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const llaves = ['id_usuario', 'alias', 'fecha_ingreso', 'cod_rango_edad', 'cod_especie', 'cod_interes', 'cod_plataforma', 'es_artista', 'mensajes_30d', 'reacciones_30d', 'eventos_asistidos', 'comisiones_compradas', 'sentimiento_promedio', 'ultima_actividad', 'estatus', 'consentimiento_datos', 'es_atipico', 'ubicacion'];",
+                  "function revisarUsuario(u) {",
+                  "    pm.expect(u).to.have.all.keys(llaves);",
+                  "    if (u.consentimiento_datos) {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.have.all.keys('pais', 'estado', 'ciudad', 'zona_horaria');",
+                  "    } else {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.eql(null);",
+                  "    }",
+                  "}",
+                  "pm.test('Nunca hay coordenadas', () => {",
+                  "    pm.expect(pm.response.text()).to.not.include('latitud');",
+                  "    pm.expect(pm.response.text()).to.not.include('longitud');",
+                  "});",
+                  "pm.test('Todos cumplen los dos filtros', () => {",
+                  "    r.datos.forEach(u => {",
+                  "        revisarUsuario(u);",
+                  "        pm.expect(u.estatus).to.eql('en_riesgo');",
+                  "        pm.expect(u.cod_plataforma).to.eql('discord');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/usuarios?estatus=en_riesgo&plataforma=discord&limite=20",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ],
+              "query": [
+                {
+                  "key": "estatus",
+                  "value": "en_riesgo"
+                },
+                {
+                  "key": "plataforma",
+                  "value": "discord"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Filtros combinados: estatus y plataforma. También hay especie e interes."
+          },
+          "response": []
+        },
+        {
+          "name": "15. Usuario sin consentimiento",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('c360_id_sin_consentimiento')) {",
+                  "    pm.test('Primero envía 13. Usuarios (página 1).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const llaves = ['id_usuario', 'alias', 'fecha_ingreso', 'cod_rango_edad', 'cod_especie', 'cod_interes', 'cod_plataforma', 'es_artista', 'mensajes_30d', 'reacciones_30d', 'eventos_asistidos', 'comisiones_compradas', 'sentimiento_promedio', 'ultima_actividad', 'estatus', 'consentimiento_datos', 'es_atipico', 'ubicacion'];",
+                  "function revisarUsuario(u) {",
+                  "    pm.expect(u).to.have.all.keys(llaves);",
+                  "    if (u.consentimiento_datos) {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.have.all.keys('pais', 'estado', 'ciudad', 'zona_horaria');",
+                  "    } else {",
+                  "        pm.expect(u.ubicacion, u.id_usuario).to.eql(null);",
+                  "    }",
+                  "}",
+                  "pm.test('Nunca hay coordenadas', () => {",
+                  "    pm.expect(pm.response.text()).to.not.include('latitud');",
+                  "    pm.expect(pm.response.text()).to.not.include('longitud');",
+                  "});",
+                  "pm.test('Sin consentimiento y sin ubicación', () => {",
+                  "    const u = pm.response.json();",
+                  "    revisarUsuario(u);",
+                  "    pm.expect(u.consentimiento_datos).to.eql(false);",
+                  "    pm.expect(u.ubicacion).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/usuarios/{{c360_id_sin_consentimiento}}",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "{{c360_id_sin_consentimiento}}"
+              ]
+            },
+            "description": "Detalle de un usuario sin consentimiento (lo toma de la petición 13): ubicacion es null."
+          },
+          "response": []
+        },
+        {
+          "name": "16. Límite fuera de rango",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422: no se recorta en silencio', () => pm.response.to.have.status(422));",
+                  "pm.test('Error de validación en limite', () => {",
+                  "    const d = pm.response.json().detail;",
+                  "    pm.expect(d).to.be.an('array');",
+                  "    pm.expect(d[0].loc).to.eql(['query', 'limite']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/usuarios?limite=201",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "201"
+                }
+              ]
+            },
+            "description": "limite mayor a 200: 422."
+          },
+          "response": []
+        },
+        {
+          "name": "17. Logout (analista)",
           "event": [
             {
               "listen": "test",

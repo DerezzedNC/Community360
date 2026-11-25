@@ -39,12 +39,19 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | **Fase 4 · Consultas** | |
 | 11. Login analista | `200` |
 | 12. Catálogos | `200` con los 8 catálogos |
-| 13. Logout (analista) | `204` |
+| 13. Usuarios (página 1) | `200`, 50 usuarios |
+| 14. Usuarios filtrados | `200`, solo `en_riesgo` de `discord` |
+| 15. Usuario sin consentimiento | `200` con `ubicacion: null` |
+| 16. Límite fuera de rango | `422` |
+| 17. Logout (analista) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.
 - **La carpeta Fase 4 abre su propia sesión** (11) porque el token de la Fase 3 queda revocado en 10. Las consultas usan la cuenta analista: son de solo lectura.
 - **12. Catálogos** revisa que lleguen las 8 listas, sin país, estado ni ciudad, con los campos del contrato v0.5 y ordenadas por código. Los códigos inactivos aparecen con `activo: false`.
+- **13 y 14** revisan en cada usuario que, sin consentimiento, `ubicacion` sea `null`, y que la respuesta nunca traiga `latitud` ni `longitud`.
+- **15 necesita 13 antes**: toma de esa página el `id_usuario` de alguien sin consentimiento. Sirve para mostrar la regla de privacidad en la demostración.
+- **16** pide `limite=201`: la API responde `422` en lugar de recortarlo en silencio.
 
 ## Evidencias (F3-09)
 
