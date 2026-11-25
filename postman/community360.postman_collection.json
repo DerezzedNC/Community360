@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "COMMUNITY 360",
+    "description": "Colección de la API. Contrato: docs/CONTRATO_API.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Fase 3 · Autenticación",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 u 503 según el contrato', () => pm.expect(pm.response.code).to.be.oneOf([200, 503]));",
+                  "pm.test('El estado coincide con las bases', () => {",
+                  "    const r = pm.response.json();",
+                  "    const todoBien = r.tidb && r.capella;",
+                  "    pm.expect(r.estado).to.eql(todoBien ? 'ok' : 'degradado');",
+                  "    pm.expect(pm.response.code).to.eql(todoBien ? 200 : 503);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [{ "key": "base_url", "value": "http://localhost:8000" }]
+}

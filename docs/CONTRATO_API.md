@@ -1,6 +1,6 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.1** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
+**Versión 0.2** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
 Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cambio sube la versión y se anota en `docs/BITACORA.md`.
 
 ## Generalidades
@@ -34,7 +34,10 @@ El backend acepta el token de dos formas (en este orden):
 ## Fase 3 · Autenticación
 
 ### `GET /api/health` (pública)
-`200` → `{"estado": "ok", "tidb": true, "capella": true}`
+- `200` → las dos bases responden: `{"estado": "ok", "tidb": true, "capella": true}`
+- `503` → falta al menos una; `tidb` y `capella` dicen cuál: `{"estado": "degradado", "tidb": true, "capella": false}`
+
+El `503` de esta ruta trae el objeto de estado, no `{"detail": ...}`.
 
 ### `POST /api/auth/login` (pública)
 Cuerpo:
