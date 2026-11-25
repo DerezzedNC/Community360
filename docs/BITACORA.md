@@ -47,3 +47,14 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Observación: en una de las consultas a `health`, TiDB no respondió a tiempo (16 s, `503` con `tidb: false`). No se repitió en 25 conexiones seguidas (mediana 1.4 s, máximo 3.3 s). Causa sin confirmar.
 - Para la demostración: si cambia la red, hay que autorizar la IP nueva en Capella, y levantar la API después de que el cluster esté HEALTHY.
 - Aviso →AG: `GET /api/health` ya puede dar `200` "ok". El indicador debe seguir soportando el `503`.
+
+## 2026-11-25 · [CC] · F3-03
+- Qué cambió: `POST /api/auth/login`, `GET /api/auth/me` y `POST /api/auth/logout` (`backend/app/routers/auth.py`, `tokens.py`, `dependencias.py`) y las peticiones Login, Me y Logout en `postman/`. **Contrato v0.3**: si llegan `Bearer` y cookie gana el `Bearer`; `503` `{"detail": "Base de datos no disponible"}` si TiDB falla; el `422` solo trae `type`, `loc` y `msg`; contraseña de 1 a 1024 caracteres; `me` da `401` si la cuenta fue desactivada.
+- Limitación: los tokens revocados viven en memoria. Si la API se reinicia, un token cerrado vuelve a servir hasta que venza (60 min como máximo). Usar un solo proceso de Uvicorn.
+- Estado: 89 pruebas sin red pasan. Con TiDB real se probó, sin escribir: login con correo inexistente (`401`), `422` y `401` sin token. **Falta** el login correcto con una cuenta real, que hace Angel desde Postman. La prueba `nube` falla hoy porque la IP de salida de Angel cambió y Capella no contesta desde la nueva; F3-03 no usa Capella.
+- Cómo se prueba: levantar la API (`backend/README.md`). Sin credenciales: `curl.exe -i http://localhost:8000/api/auth/me` → `401`. Con cuenta: en Postman, Login → Me (`200`) → Logout (`204`) → Me (`401`).
+- **Aviso →AG: ya pueden tomar F3-07.** Usar el contrato v0.3:
+  - `POST /api/auth/login` con `{"correo", "password"}`. La sesión viaja en la cookie httpOnly `c360_token`: no guardar el `token` de la respuesta ni mandar `Authorization` desde el dashboard (si se manda, el `Bearer` gana a la cookie).
+  - `401` → mostrar el `detail` tal cual. `503` → servicio no disponible, no es error de contraseña. `422` → `detail` es una **lista**, no un texto; con `peticionApi` actual sale "Error HTTP 422", así que la pantalla debe poner su propio mensaje (por ejemplo, revisar el formato del correo).
+  - El login tarda unos 2 s con TiDB real: deshabilitar el botón mientras responde.
+  - F3-08: `GET /api/auth/me` da `401` si no hay sesión; un `503` no significa sesión cerrada, así que no hay que mandar a `/login`.

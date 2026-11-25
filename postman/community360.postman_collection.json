@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "COMMUNITY 360",
-    "description": "Colección de la API. Contrato: docs/CONTRATO_API.md",
+    "description": "Colección de la API. Contrato: docs/CONTRATO_API.md.\n\nAntes de usar Login, escribe correo y password en la pestaña Variables de la colección, solo en la columna del valor local (\"Current value\" o \"Value\" sin compartir). No los guardes en el archivo ni los compartas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -38,9 +38,135 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
+                  "pm.variables.set('correo_json', JSON.stringify(pm.variables.get('correo') || ''));",
+                  "pm.variables.set('password_json', JSON.stringify(pm.variables.get('password') || ''));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 con sesión', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const r = pm.response.json();",
+                  "    pm.test('Trae el usuario y el token', () => {",
+                  "        pm.expect(r.tipo).to.eql('bearer');",
+                  "        pm.expect(r.expira_en).to.eql(3600);",
+                  "        pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    });",
+                  "    pm.test('No devuelve la contraseña ni su hash', () => {",
+                  "        pm.expect(r.usuario).to.not.have.any.keys('password', 'password_hash');",
+                  "    });",
+                  "    pm.collectionVariables.set('token', r.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": {{correo_json}},\n  \"password\": {{password_json}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 con sesión o 401 sin ella', () => pm.expect(pm.response.code).to.be.oneOf([200, 401]));",
+                  "pm.test('El cuerpo corresponde al código', () => {",
+                  "    const r = pm.response.json();",
+                  "    if (pm.response.code === 200) {",
+                  "        pm.expect(r).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    } else {",
+                  "        pm.expect(r.detail).to.eql('Sesión no válida o vencida');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 con sesión o 401 sin ella', () => pm.expect(pm.response.code).to.be.oneOf([204, 401]));",
+                  "pm.test('El 204 no trae cuerpo', () => {",
+                  "    if (pm.response.code === 204) pm.expect(pm.response.text()).to.eql('');",
+                  "});",
+                  "// No se borra la variable token: así Me demuestra que el token revocado da 401"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          },
+          "response": []
         }
       ]
     }
   ],
-  "variable": [{ "key": "base_url", "value": "http://localhost:8000" }]
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "correo", "value": "" },
+    { "key": "password", "value": "" },
+    { "key": "token", "value": "" }
+  ]
 }

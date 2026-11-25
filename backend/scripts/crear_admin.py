@@ -14,9 +14,14 @@ from getpass import GetPassWarning, getpass
 from app.config import ErrorConfiguracion, get_settings
 from app.db.tidb import TiDB
 from app.repositorios import usuario_admin
-from app.seguridad import LARGO_MINIMO_PASSWORD, crear_hash, normalizar_correo
+from app.seguridad import (
+    LARGO_MAXIMO_PASSWORD,
+    LARGO_MINIMO_PASSWORD,
+    crear_hash,
+    normalizar_correo,
+)
+from app.tokens import ROLES
 
-ROLES = ("admin", "analista")
 LARGO_CORREO = 120  # tamaños de las columnas en TiDB
 LARGO_NOMBRE = 80
 
@@ -45,6 +50,9 @@ def validar_rol(texto: str) -> str:
 def validar_password(password: str) -> str:
     if len(password) < LARGO_MINIMO_PASSWORD:
         raise ValueError(f"La contraseña debe tener al menos {LARGO_MINIMO_PASSWORD} caracteres")
+    # El login no acepta más que esto; una cuenta más larga no podría entrar
+    if len(password) > LARGO_MAXIMO_PASSWORD:
+        raise ValueError(f"La contraseña admite como máximo {LARGO_MAXIMO_PASSWORD} caracteres")
     # Un pegado que falla en la consola puede meter caracteres de control que no se ven
     if not password.isprintable():
         raise ValueError("La contraseña tiene caracteres no válidos; escríbela a mano")
@@ -80,7 +88,9 @@ def ejecutar(
     try:
         correo = pedir(leer, "Correo: ", validar_correo)
         # Se revisa antes de pedir lo demás; así también se sabe si TiDB responde
-        if usuario_admin.buscar_por_correo(tidb, correo):
+        with tidb.conexion() as con:
+            repetido = usuario_admin.buscar_por_correo(con, correo) is not None
+        if repetido:
             raise usuario_admin.CorreoRepetido
         nombre = pedir(leer, "Nombre: ", validar_nombre)
         rol = pedir(leer, "Rol (admin o analista): ", validar_rol)

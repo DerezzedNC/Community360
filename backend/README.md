@@ -23,6 +23,8 @@ Comprobar: `curl.exe -i http://localhost:8000/api/health`
 
 Si Capella está apagada, la API levanta de todos modos, `health` responde `503` y se vuelve a conectar sola cuando el cluster regresa.
 
+Usar un solo proceso (sin `--workers`): los tokens revocados por logout viven en memoria y se pierden al reiniciar la API.
+
 ## Crear cuentas (admin o analista)
 
 En una ventana de PowerShell, una cuenta por ejecución:

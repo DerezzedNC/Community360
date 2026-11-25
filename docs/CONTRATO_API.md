@@ -1,6 +1,6 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.2** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
+**Versión 0.3** (Fase 3 cerrada en diseño; Fases 4 y 5 son propuesta pendiente de confirmar con el profesor).
 Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cambio sube la versión y se anota en `docs/BITACORA.md`.
 
 ## Generalidades
@@ -8,18 +8,19 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 - Backend: `http://localhost:8000`. Frontend: `http://localhost:5173`, que reenvía `/api` y `/ws` al backend con el proxy de Vite (así cookie y API quedan en el mismo origen).
 - Todo el cuerpo va en JSON (`Content-Type: application/json`), en UTF-8.
 - Fechas en ISO 8601 y UTC: `2026-10-28T16:59:03Z`.
-- Errores siempre con la forma `{"detail": "mensaje"}`. Los de validación (422) usan el formato estándar de FastAPI.
+- Errores siempre con la forma `{"detail": "mensaje"}`. Los de validación (422) usan el formato de FastAPI, pero cada error trae solo `type`, `loc` y `msg`: nunca se devuelve lo que envió el cliente.
+- Si TiDB no responde, cualquier ruta que la necesite contesta `503` → `{"detail": "Base de datos no disponible"}`. `GET /api/health` tiene su propio formato.
 
 ### Autenticación en cada petición
 
 El backend acepta el token de dos formas (en este orden):
 
-1. Cookie `c360_token` (httpOnly, `SameSite=Lax`, `Path=/`). La usa el dashboard.
-2. Encabezado `Authorization: Bearer <token>`. Lo usa Postman.
+1. Encabezado `Authorization: Bearer <token>`. Lo usa Postman. Si viene, es el único que cuenta, aunque esté vacío o no sea válido: en ese caso responde `401` sin mirar la cookie.
+2. Cookie `c360_token` (httpOnly, `SameSite=Lax`, `Path=/`). La usa el dashboard. Solo se lee si no hay `Bearer`.
 
 | Código | Cuándo |
 |---|---|
-| 401 | Sin token, token vencido, firma inválida o token revocado por logout |
+| 401 | Sin token, token vencido, firma inválida o token revocado por logout: `{"detail": "Sesión no válida o vencida"}` |
 | 403 | Token válido pero el rol no tiene permiso (por ejemplo, `analista` intentando escribir) |
 
 ### Roles
@@ -55,15 +56,20 @@ Respuestas:
 }
 ```
 - `401` → `{"detail": "Correo o contraseña incorrectos"}`. El mismo mensaje si el correo no existe, la contraseña no coincide o la cuenta está inactiva, para no revelar cuál fue.
-- `422` → falta un campo o el correo no tiene formato válido.
+- `422` → falta un campo, el correo no tiene formato válido (no se admiten acentos ni ñ) o la contraseña está vacía o pasa de 1024 caracteres.
+- `503` → TiDB no responde.
 
 Reglas: comparar con `password_hash` usando Argon2; si entra, actualizar `ultimo_acceso`. El JWT lleva `sub` (id_admin), `rol`, `jti` (id único) y `exp` (60 min).
 
 ### `GET /api/auth/me` (requiere sesión)
-`200` → el mismo objeto `usuario` del login. `401` si no hay sesión válida.
+`200` → el mismo objeto `usuario` del login, leído de TiDB. `401` si no hay sesión válida o si la cuenta ya no existe o fue desactivada. `503` si TiDB no responde.
 
 ### `POST /api/auth/logout` (requiere sesión)
-`204` sin cuerpo. Borra la cookie y agrega el `jti` a la lista de tokens revocados hasta que venza. Después de esto el mismo token debe responder `401`.
+`204` sin cuerpo. Borra la cookie y agrega el `jti` a la lista de tokens revocados hasta que venza. Después de esto el mismo token debe responder `401`. `401` si no hay sesión válida.
+
+Se revoca el token con el que se hizo la petición. La cookie se borra siempre que la respuesta sea `204`.
+
+> **Limitación conocida:** la lista de revocados vive en la memoria del proceso. Si la API se reinicia, un token ya cerrado vuelve a servir hasta que venza (60 min como máximo). Por eso se usa un solo proceso de Uvicorn (sin `--workers`).
 
 ---
 
