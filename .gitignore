@@ -1,8 +1,25 @@
 # Secretos
 .env
 **/.env
+.env.*
 !**/.env.example
 credentials*.txt
+*.pem
+*.key
+.claude/settings.local.json
+
+# Datos y entregas (se quedan solo en el disco local)
+etl/datos/
+docs/especificacion/
+*.csv
+*.pdf
+*.docx
+*.xlsx
+*.zip
+
+# Capturas de evidencias
+evidencias/**/*.png
+evidencias/**/*.jpg
 
 # Python
 __pycache__/
@@ -10,6 +27,10 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
 
 # Node
 node_modules/
@@ -19,11 +40,12 @@ dist/
 etl/salida/
 etl/install.log
 
-# Datos de origen (se quedan solo en el disco local)
-etl/datos/
+# Editores
+.idea/
+.vscode/
 
-# Entregas y enunciados en PDF
-docs/especificacion/*.pdf
+# Logs
+*.log
 
 # Sistema
 .DS_Store
