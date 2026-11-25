@@ -110,3 +110,8 @@ Agrega las entradas al final, la más reciente abajo. Formato:
   - Para mostrar nombres legibles, buscar por `codigo` en **todas** las filas, también las de `activo: false`. Para las opciones de los filtros, **solo** las de `activo: true`.
   - No hay países, estados ni ciudades en esta ruta: no armar filtros geográficos con ella.
   - `401` → `/login`, como en cualquier ruta. `503` → aviso de servicio no disponible, sin datos de reemplazo.
+
+## 2026-11-25 · [AG] · F4-00
+- Qué cambió: estructura responsiva del dashboard en `frontend/src/paginas/PaginaDashboard.jsx` y `TarjetaSeccion.jsx` con las 8 secciones de solo lectura (`GET /api/metricas/resumen`, `/estatus`, `/plataformas`, `/temas`, `/geografia` con insignia de consentimiento, `/actividad`, `GET /api/usuarios` y `GET /api/cuarentena`), todas mostrando `"Pendiente de conexión con la API"` sin filtros aún y sin ningún dato o lista estática; navegación lateral por secciones en `LayoutDashboard.jsx`; componentes reutilizables ECharts (`GraficaBarras`, `GraficaDona`, `GraficaMapaCalor` sin asumir ejes, y `LienzoEcharts`) con manejo de estados `cargando`, `sin datos` y `error`.
+- Cómo se prueba: con `npm run dev` en `frontend/` y sesión iniciada en `http://localhost:5173/dashboard`, verificar las 8 secciones, su diseño responsivo en escritorio y móvil, y `npm run build`.
+- PETICIÓN →CC / →AG (si aplica): `PETICIÓN →CC`: conforme cierren `F4-02b` a `F4-02f`, documentar en `docs/CONTRATO_API.md` el formato JSON exacto de respuesta (llaves, tipos, paginación y estructura de ejes/celdas en `/api/metricas/actividad`) de `GET /api/usuarios`, `GET /api/usuarios/{id_usuario}`, `GET /api/metricas/*` y `GET /api/cuarentena` para consumirlos tal cual en `F4-03b`–`F4-03e`.

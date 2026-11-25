@@ -1,8 +1,19 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LayoutDashboard from './componentes/LayoutDashboard';
 import RutaProtegida from './componentes/RutaProtegida';
-import VistaDashboardVacia from './paginas/VistaDashboardVacia';
 import PaginaLogin from './paginas/PaginaLogin';
+
+const PaginaDashboard = lazy(() => import('./paginas/PaginaDashboard'));
+
+function CargandoVista() {
+  return (
+    <div className="estado-grafica" role="status" aria-live="polite">
+      <span className="indicador-carga" aria-hidden="true" />
+      <p className="estado-grafica__texto">Cargando secciones del panel…</p>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -12,7 +23,14 @@ export default function App() {
         <Route path="/login" element={<PaginaLogin />} />
         <Route element={<RutaProtegida />}>
           <Route path="/dashboard" element={<LayoutDashboard />}>
-            <Route index element={<VistaDashboardVacia />} />
+            <Route
+              index
+              element={
+                <Suspense fallback={<CargandoVista />}>
+                  <PaginaDashboard />
+                </Suspense>
+              }
+            />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

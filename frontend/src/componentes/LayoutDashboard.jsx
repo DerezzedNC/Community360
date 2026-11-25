@@ -88,7 +88,7 @@ export default function LayoutDashboard() {
         </div>
 
         <nav className="navegacion">
-          <p className="navegacion__etiqueta">Panel de consulta</p>
+          <p className="navegacion__etiqueta">Secciones del panel</p>
           <NavLink
             to="/dashboard"
             end
@@ -97,8 +97,64 @@ export default function LayoutDashboard() {
               `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
             }
           >
-            Resumen general
+            Vista general
           </NavLink>
+          <a
+            href="#seccion-resumen"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Resumen de indicadores
+          </a>
+          <a
+            href="#seccion-estatus"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Usuarios por estatus
+          </a>
+          <a
+            href="#seccion-plataformas"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Plataformas
+          </a>
+          <a
+            href="#seccion-temas"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Temas
+          </a>
+          <a
+            href="#seccion-geografia"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Geografía
+          </a>
+          <a
+            href="#seccion-actividad"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Actividad
+          </a>
+          <a
+            href="#seccion-usuarios"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Padrón de usuarios
+          </a>
+          <a
+            href="#seccion-cuarentena"
+            className="navegacion__subenlace"
+            onClick={() => setMenuAbierto(false)}
+          >
+            Cuarentena
+          </a>
         </nav>
 
         <div className="barra-lateral__pie">
