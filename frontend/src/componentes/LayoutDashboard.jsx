@@ -1,10 +1,25 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { consultarSalud } from '../servicios/api';
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+  useOutletContext,
+} from 'react-router-dom';
+import {
+  ErrorApi,
+  cerrarSesion,
+  consultarSalud,
+} from '../servicios/api';
 
 export default function LayoutDashboard() {
+  const navegar = useNavigate();
+  const contexto = useOutletContext() || {};
+  const usuario = contexto.usuario || null;
+
   const [salud, setSalud] = useState(null);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [errorCierre, setErrorCierre] = useState('');
 
   useEffect(() => {
     const controlador = new AbortController();
@@ -23,6 +38,30 @@ export default function LayoutDashboard() {
 
     return () => controlador.abort();
   }, []);
+
+  async function manejarCierreSesion() {
+    if (cerrandoSesion) {
+      return;
+    }
+
+    setCerrandoSesion(true);
+    setErrorCierre('');
+
+    try {
+      await cerrarSesion();
+      navegar('/login', { replace: true });
+    } catch (error) {
+      if (error instanceof ErrorApi && error.codigoHttp === 401) {
+        navegar('/login', { replace: true });
+        return;
+      }
+
+      setErrorCierre(
+        'No se pudo cerrar la sesión porque el servidor no respondió. Intenta nuevamente.'
+      );
+      setCerrandoSesion(false);
+    }
+  }
 
   const estadoSalud = salud?.estado;
   const claseEstadoSalud =
@@ -63,6 +102,13 @@ export default function LayoutDashboard() {
         </nav>
 
         <div className="barra-lateral__pie">
+          {usuario && (
+            <div className="ficha-usuario">
+              <p className="ficha-usuario__nombre">{usuario.nombre}</p>
+              <p className="ficha-usuario__correo">{usuario.correo}</p>
+              <span className="ficha-usuario__rol">{usuario.rol}</span>
+            </div>
+          )}
           <span className="etiqueta-lectura">Modo solo lectura</span>
         </div>
       </aside>
@@ -116,11 +162,35 @@ export default function LayoutDashboard() {
                 <span>sin conexión</span>
               )}
             </div>
+
+            {usuario && (
+              <div className="sesion-encabezado">
+                <span className="sesion-encabezado__usuario">
+                  {usuario.nombre}{' '}
+                  <span className="sesion-encabezado__rol">({usuario.rol})</span>
+                </span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="boton-cerrar-sesion"
+              onClick={manejarCierreSesion}
+              disabled={cerrandoSesion}
+            >
+              {cerrandoSesion ? 'Cerrando sesión…' : 'Cerrar sesión'}
+            </button>
           </div>
         </header>
 
+        {errorCierre && (
+          <div className="aviso-cierre" role="alert">
+            {errorCierre}
+          </div>
+        )}
+
         <main className="contenido-principal">
-          <Outlet />
+          <Outlet context={{ usuario }} />
         </main>
       </div>
     </div>

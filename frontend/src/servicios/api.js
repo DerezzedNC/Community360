@@ -24,6 +24,7 @@ export async function peticionApi(ruta, opciones = {}) {
   const respuesta = await fetch(ruta, {
     method: metodo,
     credentials: 'include',
+    cache: 'no-store',
     headers: cabeceras,
     body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
     signal: senal,
@@ -40,6 +41,15 @@ export async function peticionApi(ruta, opciones = {}) {
   }
 
   if (!respuesta.ok) {
+    if (
+      respuesta.status === 401 &&
+      ruta !== '/api/auth/login' &&
+      ruta !== '/api/auth/me' &&
+      typeof window !== 'undefined'
+    ) {
+      window.dispatchEvent(new CustomEvent('c360:sesion-expirada'));
+    }
+
     const detalle =
       typeof datos?.detail === 'string'
         ? datos.detail
@@ -75,4 +85,15 @@ export async function iniciarSesion({ correo, password }, senal) {
   // La sesión queda establecida en la cookie httpOnly c360_token.
   // Se descarta datos.token para no guardarlo nunca en el navegador.
   return datos?.usuario ?? null;
+}
+
+export async function consultarSesionActual(senal) {
+  return peticionApi('/api/auth/me', { senal });
+}
+
+export async function cerrarSesion(senal) {
+  return peticionApi('/api/auth/logout', {
+    metodo: 'POST',
+    senal,
+  });
 }

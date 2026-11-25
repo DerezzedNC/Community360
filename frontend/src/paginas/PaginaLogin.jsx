@@ -1,13 +1,39 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ErrorApi, iniciarSesion } from '../servicios/api';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  ErrorApi,
+  consultarSesionActual,
+  iniciarSesion,
+} from '../servicios/api';
 
 export default function PaginaLogin() {
   const navegar = useNavigate();
+  const ubicacion = useLocation();
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [alerta, setAlerta] = useState(null);
+
+  // Si ya existe una sesión válida en cookie httpOnly, redirige a /dashboard
+  useEffect(() => {
+    const controlador = new AbortController();
+    setVerificandoSesion(true);
+
+    consultarSesionActual(controlador.signal)
+      .then(() => {
+        if (!controlador.signal.aborted) {
+          navegar('/dashboard', { replace: true });
+        }
+      })
+      .catch(() => {
+        if (!controlador.signal.aborted) {
+          setVerificandoSesion(false);
+        }
+      });
+
+    return () => controlador.abort();
+  }, [ubicacion.key, navegar]);
 
   async function manejarEnvio(evento) {
     evento.preventDefault();
@@ -76,6 +102,20 @@ export default function PaginaLogin() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  if (verificandoSesion) {
+    return (
+      <main className="contenedor-centrado">
+        <section className="tarjeta-estado" role="status" aria-live="polite">
+          <span className="indicador-carga" aria-hidden="true" />
+          <h1 className="tarjeta-estado__titulo">Verificando sesión…</h1>
+          <p className="tarjeta-estado__texto">
+            Comprobando si ya tienes una sesión activa.
+          </p>
+        </section>
+      </main>
+    );
   }
 
   return (

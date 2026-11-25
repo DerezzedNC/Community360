@@ -138,10 +138,46 @@ body {
 .barra-lateral__pie {
   padding-top: 1rem;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ficha-usuario {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radio-medio);
+  background-color: var(--color-lateral-suave);
+}
+
+.ficha-usuario__nombre {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.ficha-usuario__correo {
+  margin: 0.1rem 0 0.45rem;
+  font-size: 0.75rem;
+  color: var(--color-texto-lateral);
+  word-break: break-all;
+}
+
+.ficha-usuario__rol {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: rgba(37, 99, 235, 0.25);
+  color: #bfdbfe;
 }
 
 .etiqueta-lectura {
   display: inline-block;
+  align-self: flex-start;
   font-size: 0.75rem;
   color: var(--color-texto-lateral);
   background-color: var(--color-lateral-suave);
@@ -201,6 +237,58 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sesion-encabezado {
+  font-size: 0.84rem;
+  color: var(--color-texto);
+  font-weight: 500;
+}
+
+.sesion-encabezado__rol {
+  color: var(--color-texto-secundario);
+  font-weight: 400;
+}
+
+.boton-cerrar-sesion {
+  padding: 0.42rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: var(--color-texto);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.boton-cerrar-sesion:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.boton-cerrar-sesion:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.boton-cerrar-sesion:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.aviso-cierre {
+  margin: 1rem 1.5rem 0;
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--radio-medio);
+  background-color: var(--color-alerta-fondo);
+  color: var(--color-alerta-texto);
+  border: 1px solid #fde68a;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* Indicador de /api/health */
@@ -449,6 +537,46 @@ body {
   font-size: 0.78rem;
   color: var(--color-texto-secundario);
   text-align: center;
+}
+
+/* Tarjeta de verificación de sesión y estado del servicio */
+.tarjeta-estado {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-grande);
+  padding: 2rem;
+  text-align: center;
+  box-shadow: var(--sombra-suave);
+}
+
+.tarjeta-estado__titulo {
+  margin: 0.5rem 0 0.45rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.tarjeta-estado__texto {
+  margin: 0 0 1.1rem;
+  font-size: 0.9rem;
+  color: var(--color-texto-secundario);
+}
+
+.indicador-carga {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--color-acento-claro);
+  border-top-color: var(--color-acento);
+  animation: giro-carga 0.75s linear infinite;
+}
+
+@keyframes giro-carga {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .fondo-movil {
