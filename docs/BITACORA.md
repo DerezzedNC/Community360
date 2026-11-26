@@ -130,3 +130,8 @@ Agrega las entradas al final, la más reciente abajo. Formato:
   - `ubicacion` es `{pais, estado, ciudad, zona_horaria}` o `null`. Si es `null`, mostrar algo como "Sin consentimiento" o "—", **nunca** buscar o deducir la ubicación por otro lado. No existen coordenadas.
   - Detalle: `GET /api/usuarios/{id_usuario}` → el mismo objeto; `404` → "Usuario no encontrado".
   - Con TiDB lenta, una petición puede tardar varios segundos o dar `503`: mostrar estado de carga y el aviso de servicio no disponible, sin datos de reemplazo.
+
+## 2026-11-25 · [CC] · F4-04 Pool de conexiones a TiDB
+- Qué hace: `backend/app/db/tidb.py` reutiliza hasta 4 conexiones, con ping antes de usarlas y renovación después de 4 min sin uso. Una conexión con error se descarta. Contrato v0.7: si las 4 siguen ocupadas después de 10 s, `503` igual que con TiDB caída. Con TiDB real, una conexión reutilizada tarda 0.3 s y una nueva de 0.5 a 5.5 s (con WARP).
+- Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_tidb_pool.py`. Hay que reiniciar la API.
+- Aviso →AG: nada que cambiar; las peticiones del dashboard deberían responder más rápido.

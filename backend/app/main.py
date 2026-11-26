@@ -24,6 +24,7 @@ async def ciclo_de_vida(app: FastAPI):
     await run_in_threadpool(app.state.capella.conectar, 10)
     yield
     await run_in_threadpool(app.state.capella.cerrar)
+    await run_in_threadpool(app.state.tidb.cerrar)
 
 
 async def error_validacion(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -52,7 +53,7 @@ def create_app(
     settings = settings or get_settings()
     app = FastAPI(
         title="COMMUNITY 360",
-        version="0.6",
+        version="0.7",
         lifespan=ciclo_de_vida,
         # Protegido por defecto: las rutas públicas están en dependencias.py
         dependencies=[Depends(proteger)],

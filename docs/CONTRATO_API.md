@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.6** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos` y `GET /api/usuarios`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+**Versión 0.7** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos` y `GET /api/usuarios`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
 
 | Versión | Cambio |
 |---|---|
+| 0.7 | El `503` de TiDB también aplica si las conexiones del pool siguen ocupadas después de 10 s (F4-04) |
 | 0.6 | `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` definidos; reglas generales de paginación (`422` fuera de rango) y de privacidad (nunca coordenadas) (F4-02b) |
 | 0.5 | `GET /api/catalogos` definido: formato, orden, códigos inactivos con `activo: false` y sin geografía (F4-02a) |
 | 0.4 | Protección de `/api/*`, cuerpo del `403` y permisos por rol (F3-04) |
@@ -15,7 +16,7 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 - Todo el cuerpo va en JSON (`Content-Type: application/json`), en UTF-8.
 - Fechas en ISO 8601 y UTC: `2026-10-28T16:59:03Z`.
 - Errores siempre con la forma `{"detail": "mensaje"}`. Los de validación (422) usan el formato de FastAPI, pero cada error trae solo `type`, `loc` y `msg`: nunca se devuelve lo que envió el cliente.
-- Si TiDB no responde, cualquier ruta que la necesite contesta `503` → `{"detail": "Base de datos no disponible"}`. `GET /api/health` tiene su propio formato.
+- Si TiDB no responde, cualquier ruta que la necesite contesta `503` → `{"detail": "Base de datos no disponible"}`. `GET /api/health` tiene su propio formato. La API reutiliza hasta 4 conexiones a TiDB; si las 4 siguen ocupadas después de 10 s, también responde ese `503`.
 
 ### Paginación (todas las listas)
 
