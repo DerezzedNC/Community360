@@ -45,6 +45,14 @@ def codigos_de_tema(con: Connection) -> list[str]:
     return [f["codigo"] for f in _filas(con, "SELECT codigo FROM tema")]
 
 
+def nombres_de_tipo(con: Connection) -> dict[str, str]:
+    return {f["codigo"]: f["nombre"] for f in _filas(con, "SELECT codigo, nombre FROM tipo_interaccion")}
+
+
+def nombres_de_etiqueta(con: Connection) -> dict[str, str]:
+    return {f["codigo"]: f["nombre"] for f in _filas(con, "SELECT codigo, nombre FROM etiqueta")}
+
+
 # Privacidad: solo usuarios con consentimiento (condición dentro del JOIN); sin coordenadas
 # ni id_usuario. Los grupos chicos se quitan después, en ocultar_grupos_chicos.
 SQL_GEOGRAFIA = (
@@ -104,6 +112,22 @@ def interacciones_por_tema(capella: Capella) -> dict[str, dict]:
         "FROM interacciones AS i GROUP BY i.tema"
     )
     return {f["tema"]: f for f in filas}
+
+
+def interacciones_por_tipo(capella: Capella) -> dict[str, int]:
+    filas = capella.consultar(
+        "SELECT i.tipo, COUNT(*) AS interacciones FROM interacciones AS i GROUP BY i.tipo"
+    )
+    return {f["tipo"]: f["interacciones"] for f in filas}
+
+
+def interacciones_por_etiqueta(capella: Capella) -> dict[str, int]:
+    """Interacciones que llevan cada etiqueta (una etiqueta repetida en la misma cuenta una vez)."""
+    filas = capella.consultar(
+        "SELECT e AS etiqueta, COUNT(DISTINCT META(i).id) AS interacciones "
+        "FROM interacciones AS i UNNEST i.etiquetas AS e GROUP BY e"
+    )
+    return {f["etiqueta"]: f["interacciones"] for f in filas}
 
 
 def marcas_de_tiempo(capella: Capella) -> list[str]:

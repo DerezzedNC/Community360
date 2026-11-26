@@ -11,7 +11,8 @@ from app.main import create_app
 from app.repositorios import metricas
 from tests.conftest import BaseFalsa
 
-RUTAS = ["resumen", "estatus", "plataformas", "temas", "actividad", "geografia", "puntos-calientes"]
+RUTAS = ["resumen", "estatus", "plataformas", "temas", "actividad", "geografia", "puntos-calientes",
+         "tipos", "etiquetas"]
 
 # fragmento de la consulta -> filas que devuelve
 TIDB = {
@@ -19,6 +20,9 @@ TIDB = {
     "GROUP BY estatus": [{"estatus": "activo", "usuarios": 4}, {"estatus": "inactivo", "usuarios": 6}],
     "FROM plataforma p": [{"codigo": "discord", "usuarios": 6}, {"codigo": "tiktok", "usuarios": 0}],
     "SELECT codigo FROM tema": [{"codigo": "musica"}, {"codigo": "memes_humor"}],
+    "FROM tipo_interaccion": [{"codigo": "comentario", "nombre": "Comentario"},
+                              {"codigo": "reaccion", "nombre": "Reacción"}],
+    "FROM etiqueta": [{"codigo": f"e{n:02}", "nombre": f"Etiqueta {n}"} for n in range(12)],
     "c.nombre AS ciudad": [
         {"pais": "México", "estado": "Yucatán", "ciudad": "Mérida", "usuarios": 5},
         {"pais": "México", "estado": "Yucatán", "ciudad": "Valladolid", "usuarios": 2},  # se oculta
@@ -37,6 +41,10 @@ CAPELLA = {
     "FROM cuarentena": [5],
     "GROUP BY i.canal": [{"canal": "discord", "interacciones": 3}],
     "GROUP BY i.tema": [{"tema": "musica", "interacciones": 3, "sentimiento_promedio": 0.5}],
+    "GROUP BY i.tipo": [{"tipo": "comentario", "interacciones": 3}, {"tipo": "viejo", "interacciones": 1}],
+    # 12 etiquetas usadas: e00 la más usada ... e11 la menos; e05 y e06 empatan
+    "UNNEST i.etiquetas": [{"etiqueta": f"e{n:02}", "interacciones": 20 - n} for n in range(12) if n != 6]
+                          + [{"etiqueta": "e06", "interacciones": 15}, {"etiqueta": "rara", "interacciones": 0}],
     "RAW i.`timestamp`": ["2026-11-23T10:15:00Z", "2026-11-23T10:59:59Z", "2026-11-29T23:00:00Z", None],
 }
 
@@ -133,6 +141,23 @@ def test_plataformas_y_temas_incluyen_los_ceros(cliente):
     ]
 
 
+def test_tipos_con_nombre_del_catalogo_e_incluye_ceros(cliente):
+    assert pedir(cliente, "tipos") == {"total": 4, "datos": [
+        {"tipo": "comentario", "nombre": "Comentario", "interacciones": 3, "porcentaje": 75.0},
+        {"tipo": "reaccion", "nombre": "Reacción", "interacciones": 0, "porcentaje": 0.0},
+        {"tipo": "viejo", "nombre": None, "interacciones": 1, "porcentaje": 25.0},  # no está en el catálogo
+    ]}
+
+
+def test_etiquetas_top_10_de_mas_a_menos(cliente):
+    r = pedir(cliente, "etiquetas")
+    assert r["limite"] == 10 and len(r["datos"]) == 10
+    assert [e["etiqueta"] for e in r["datos"]] == ["e00", "e01", "e02", "e03", "e04", "e05", "e06",
+                                                  "e07", "e08", "e09"]
+    assert r["datos"][0] == {"etiqueta": "e00", "nombre": "Etiqueta 0", "interacciones": 20}
+    assert r["datos"][5]["interacciones"] == r["datos"][6]["interacciones"] == 15  # empate: por código
+
+
 def test_actividad_168_celdas_en_utc(cliente):
     r = pedir(cliente, "actividad")
     assert r["zona_horaria"] == "UTC" and len(r["datos"]) == 168
@@ -194,14 +219,15 @@ def test_puntos_calientes_agrupa_en_tidb_solo_con_consentimiento():
     assert not re.search(r"\b(latitud|longitud|id_usuario)\b", sin_floor)
 
 
-@pytest.mark.parametrize("ruta", ["resumen", "estatus", "plataformas", "temas", "geografia", "puntos-calientes"])
+@pytest.mark.parametrize("ruta", ["resumen", "estatus", "plataformas", "temas", "geografia", "puntos-calientes",
+                                  "tipos", "etiquetas"])
 def test_tidb_caida_503(cliente, tidb, ruta):
     tidb.falla = pymysql.err.OperationalError(2003, "detalle privado")
     r = cliente.get(f"/api/metricas/{ruta}")
     assert (r.status_code, r.json()) == (503, {"detail": "Base de datos no disponible"})
 
 
-@pytest.mark.parametrize("ruta", ["resumen", "plataformas", "temas", "actividad"])
+@pytest.mark.parametrize("ruta", ["resumen", "plataformas", "temas", "actividad", "tipos", "etiquetas"])
 def test_capella_caida_503(cliente, capella, ruta):
     capella.falla = CapellaNoDisponible("sin conexión")
     r = cliente.get(f"/api/metricas/{ruta}")
@@ -220,6 +246,11 @@ def test_metricas_con_bases_reales():
     assert resumen["usuarios"] == r["estatus"].json()["total"]
     assert resumen["interacciones"] == sum(c["interacciones"] for c in r["actividad"].json()["datos"])
     assert resumen["interacciones"] == sum(t["interacciones"] for t in r["temas"].json()["datos"])
+    assert resumen["interacciones"] == r["tipos"].json()["total"]
+    assert all(t["nombre"] for t in r["tipos"].json()["datos"])
+    etiquetas = r["etiquetas"].json()["datos"]
+    assert 0 < len(etiquetas) <= 10 and all(e["nombre"] and e["interacciones"] > 0 for e in etiquetas)
+    assert [e["interacciones"] for e in etiquetas] == sorted((e["interacciones"] for e in etiquetas), reverse=True)
     geo = r["geografia"].json()
     assert all(g["usuarios"] >= 3 for g in geo["estados"] + geo["ciudades"])
     assert "latitud" not in r["geografia"].text and "longitud" not in r["geografia"].text

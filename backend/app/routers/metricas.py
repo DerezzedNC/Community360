@@ -138,6 +138,62 @@ def temas(request: Request) -> Temas:
     return Temas(datos=datos)
 
 
+# --- Tipos de interacción ------------------------------------------------------------
+
+
+class FilaTipo(BaseModel):
+    tipo: str
+    nombre: str | None  # null si el código no está en el catálogo
+    interacciones: int
+    porcentaje: float
+
+
+class Tipos(BaseModel):
+    total: int
+    datos: list[FilaTipo]
+
+
+@router.get("/tipos")
+def tipos(request: Request) -> Tipos:
+    with request.app.state.tidb.conexion() as con:
+        nombres = m.nombres_de_tipo(con)
+    conteo = m.interacciones_por_tipo(request.app.state.capella)
+    total = sum(conteo.values())
+    return Tipos(total=total, datos=[
+        FilaTipo(tipo=c, nombre=nombres.get(c), interacciones=conteo.get(c, 0),
+                 porcentaje=porcentaje(conteo.get(c, 0), total))
+        for c in sorted(set(nombres) | set(conteo))
+    ])
+
+
+# --- Etiquetas -----------------------------------------------------------------------
+
+TOP_ETIQUETAS = 10
+
+
+class FilaEtiqueta(BaseModel):
+    etiqueta: str
+    nombre: str | None
+    interacciones: int
+
+
+class Etiquetas(BaseModel):
+    limite: int
+    datos: list[FilaEtiqueta]
+
+
+@router.get("/etiquetas")
+def etiquetas(request: Request) -> Etiquetas:
+    with request.app.state.tidb.conexion() as con:
+        nombres = m.nombres_de_etiqueta(con)
+    conteo = m.interacciones_por_etiqueta(request.app.state.capella)
+    # De más a menos usadas; empate por código. Solo las que se usan al menos una vez.
+    top = sorted(((c, n) for c, n in conteo.items() if n > 0), key=lambda x: (-x[1], x[0]))[:TOP_ETIQUETAS]
+    return Etiquetas(limite=TOP_ETIQUETAS, datos=[
+        FilaEtiqueta(etiqueta=c, nombre=nombres.get(c), interacciones=n) for c, n in top
+    ])
+
+
 # --- Actividad -----------------------------------------------------------------------
 
 

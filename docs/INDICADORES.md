@@ -30,6 +30,14 @@ Por cada código del catálogo `plataforma`: `usuarios` (con esa `cod_plataforma
 
 Por cada código del catálogo `tema`: `interacciones` con ese `tema` y `sentimiento_promedio` de esas interacciones (`null` si no hay ninguna).
 
+## `GET /api/metricas/tipos` (TiDB + Capella)
+
+Por cada código del catálogo `tipo_interaccion`: `interacciones` con ese `tipo` y `porcentaje = interacciones del tipo / total × 100`. Incluye los tipos con 0. `nombre` sale del catálogo.
+
+## `GET /api/metricas/etiquetas` (TiDB + Capella)
+
+Por cada código del arreglo `etiquetas`: `interacciones` = número de interacciones distintas que la llevan (`UNNEST` + `COUNT(DISTINCT id)`). Se ordenan de mayor a menor (empate por código) y se devuelven las 10 primeras con uso mayor a 0. Una interacción con 3 etiquetas suma 1 a cada una, así que la suma puede pasar del total de interacciones. `nombre` sale del catálogo `etiqueta`.
+
 ## `GET /api/metricas/actividad` (Capella)
 
 Mapa de calor: interacciones por `dia_semana` (1 = lunes … 7 = domingo) y `hora` (0 a 23) de su `timestamp`, **en UTC**. Siempre 168 celdas (7 × 24), con 0 donde no hay actividad.
@@ -69,6 +77,8 @@ El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `reque
 | `plataformas.interacciones` | +1 en su `canal` | pasa de un canal a otro si cambia | −1 en su `canal` |
 | `temas.interacciones` | +1 en su `tema` | pasa de un tema a otro si cambia | −1 en su `tema` |
 | `actividad` | +1 en la celda de su `timestamp` | cambia de celda si cambia `timestamp` | −1 en su celda |
+| `tipos.interacciones` (y `total`, `porcentaje`) | +1 en su `tipo`; todos los porcentajes se recalculan | pasa de un tipo a otro si cambia | −1 en su `tipo` |
+| `etiquetas.interacciones` | +1 en cada etiqueta que lleva; el top 10 puede reordenarse | −1 en las que quita, +1 en las que agrega | −1 en cada etiqueta que llevaba |
 | `usuarios`, `usuarios_activos`, `porcentaje_activos`, `usuarios_con_consentimiento`, `estatus`, `geografia`, `puntos-calientes` | no cambian | no cambian | no cambian |
 | `en_cuarentena` | no cambia: un dato inválido da `422` y no se guarda | no cambia | no cambia |
 

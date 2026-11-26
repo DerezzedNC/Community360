@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.13** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
+**Versión 0.14** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
 
 | Versión | Cambio |
 |---|---|
+| 0.14 | `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (top 10), de Capella con nombres de los catálogos (F6-05) |
 | 0.13 | WebSocket bidireccional: el cliente pide `{"accion": "actualizar"}`; un mensaje desconocido recibe `evento: error` sin cerrar; `metricas.actualizadas` trae `cambio` (F6-04) |
 | 0.12 | `GET /api/metricas/puntos-calientes`: mapa de calor en cuadros de 0.2°, solo el centro de cada cuadro y sin cuadros de menos de 3; excepción a la regla de coordenadas (F6-03) |
 | 0.11 | WebSocket `/ws/metricas`: resumen al conectarse y después de cada cambio del CRUD; cierres `4401` y `4403` (F5-01) |
@@ -156,6 +157,8 @@ Detalle v0.10:
 | `GET /api/metricas/actividad` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/geografia` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/puntos-calientes` | **Definido en v0.12**: ver abajo |
+| `GET /api/metricas/tipos` | **Definido en v0.14**: ver abajo |
+| `GET /api/metricas/etiquetas` | **Definido en v0.14**: ver abajo |
 | `GET /api/cuarentena` | **Definido en v0.9**: ver abajo |
 
 ### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
@@ -267,6 +270,20 @@ Mapa de calor geográfico de usuarios con consentimiento (TiDB). Sin parámetros
 - **Privacidad:** solo usuarios con `consentimiento_datos = TRUE` y coordenadas en `ubicacion_usuario`. Ningún cuadro con menos de 3 usuarios. Nunca coordenadas de un usuario ni `id_usuario`.
 - `usuarios_con_coordenadas` cuenta también a los de cuadros ocultos; `usuarios_en_mapa`, solo a los visibles. `datos` va de mayor a menor número de usuarios.
 - `401` sin sesión, `503` si TiDB no responde.
+
+### `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (requiere sesión, ambos roles) · v0.14
+
+Conteos de Capella con el nombre legible del catálogo de TiDB (`tipo_interaccion`, `etiqueta`). Sin parámetros.
+
+```json
+{ "total": 203, "datos": [ { "tipo": "comentario", "nombre": "Comentario", "interacciones": 56, "porcentaje": 27.6 } ] }
+{ "limite": 10, "datos": [ { "etiqueta": "evento", "nombre": "Evento", "interacciones": 53 } ] }
+```
+
+- `tipos`: una fila por código del catálogo, incluso con 0, ordenada por `tipo`. `total` = todas las interacciones; `porcentaje` a 1 decimal.
+- `etiquetas`: las 10 más usadas (o menos, si no hay 10 en uso), de más a menos; empate por código. `interacciones` = interacciones que llevan la etiqueta. No incluye etiquetas sin uso.
+- `nombre` es `null` si un documento usa un código que no está en el catálogo (no debería pasar: el ETL y el CRUD los validan).
+- `401` sin sesión, `503` si falta TiDB o Capella.
 
 ### `GET /api/cuarentena` (requiere sesión, ambos roles) · v0.9
 

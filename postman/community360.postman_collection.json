@@ -1914,7 +1914,98 @@
           "response": []
         },
         {
-          "name": "34. Logout (analista)",
+          "name": "34. Métricas: tipos de interacción",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Una fila por tipo, con nombre', () => r.datos.forEach(t => pm.expect(t).to.have.all.keys('tipo', 'nombre', 'interacciones', 'porcentaje')));",
+                  "pm.test('La suma es el total', () => pm.expect(r.datos.reduce((s, t) => s + t.interacciones, 0)).to.eql(r.total));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/tipos",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "tipos"
+              ]
+            },
+            "description": "Interacciones por tipo_interaccion (Capella), con el nombre del catálogo de TiDB. Una fila por código, incluso con 0."
+          },
+          "response": []
+        },
+        {
+          "name": "35. Métricas: etiquetas más usadas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Hasta 10, de más a menos usadas', () => {",
+                  "    pm.expect(r.datos.length).to.be.at.most(r.limite);",
+                  "    r.datos.forEach((e, k) => k && pm.expect(e.interacciones).to.be.at.most(r.datos[k - 1].interacciones));",
+                  "});",
+                  "pm.test('Cada etiqueta con nombre', () => r.datos.forEach(e => pm.expect(e).to.have.all.keys('etiqueta', 'nombre', 'interacciones')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/etiquetas",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "etiquetas"
+              ]
+            },
+            "description": "Top 10 de etiquetas por número de interacciones que las llevan (Capella), con el nombre del catálogo de TiDB."
+          },
+          "response": []
+        },
+        {
+          "name": "36. Logout (analista)",
           "event": [
             {
               "listen": "test",
