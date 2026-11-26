@@ -35,7 +35,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | F4-03a | [AG] | Navegación de las vistas históricas y carga de catálogos (nombres legibles y opciones de los filtros) | F3-08, F4-02a | hecho |
 | F4-03b | [AG] | Vista de usuarios: tabla paginada, filtros y detalle. Ubicación solo si la API la da | F4-03a, F4-02b | hecho |
 | F4-03c | [AG] | Gráficas históricas de estatus (dona) y geografía (barras) | F4-03a, F4-02d | hecho |
-| F4-03d | [AG] | Tarjetas de resumen y gráficas históricas de plataformas, temas y actividad (mapa de calor día × hora) | F4-03a, F4-02e | pendiente |
+| F4-03d | [AG] | Tarjetas de resumen y gráficas históricas de plataformas, temas y actividad (mapa de calor día × hora) | F4-03a, F4-02e | hecho |
 | F4-03e | [AG] | Vista de cuarentena: tabla paginada y filtro por motivo | F4-03a, F4-02f | pendiente |
 
 ## Fase 5 · WebSockets (se detalla al cerrar la Fase 4)

@@ -137,3 +137,19 @@ export async function consultarMetricasEstatus(senal) {
 export async function consultarMetricasGeografia(senal) {
   return peticionApi('/api/metricas/geografia', { senal });
 }
+
+export async function consultarMetricasResumen(senal) {
+  return peticionApi('/api/metricas/resumen', { senal });
+}
+
+export async function consultarMetricasPlataformas(senal) {
+  return peticionApi('/api/metricas/plataformas', { senal });
+}
+
+export async function consultarMetricasTemas(senal) {
+  return peticionApi('/api/metricas/temas', { senal });
+}
+
+export async function consultarMetricasActividad(senal) {
+  return peticionApi('/api/metricas/actividad', { senal });
+}

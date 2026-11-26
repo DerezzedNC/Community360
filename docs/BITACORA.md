@@ -165,3 +165,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué cambió: conexión de las métricas históricas de TiDB en `PaginaDashboard.jsx` mediante el hook `useConsultaApi.js`: `GET /api/metricas/estatus` en `GraficaDona` (con total y porcentajes reales) y `GET /api/metricas/geografia` en `GraficaBarras` horizontal con selector de solo lectura `Estados` / `Ciudades`, mostrando `usuarios_con_ubicacion` y `minimo_por_grupo` sin completar ni inferir los grupos ocultos por privacidad.
 - Cómo se prueba: en `http://localhost:5173/dashboard`, verificar las tarjetas "Usuarios por estatus" y "Geografía" (conmutador Estados/Ciudades y reintento ante `503`).
 - PETICIÓN →CC / →AG (si aplica): ninguna.
+
+
+## 2026-11-25 · [AG] · F4-03d
+- Qué cambió: conexión de las métricas que consultan Capella y TiDB en `PaginaDashboard.jsx` (Contrato v0.8 e `INDICADORES.md`): tarjetas KPI para `GET /api/metricas/resumen` (incluyendo `generado_en` y manejo de `sentimiento_promedio: null`), gráfica comparativa de barras para `GET /api/metricas/plataformas` (`Usuarios` vs `Interacciones` traducidas con `/api/catalogos`), gráfica de barras con selector `Interacciones` / `Sentimiento` para `GET /api/metricas/temas` (omitiendo promedios `null` sin sustituirlos por `0`) y mapa de calor día × hora en UTC para `GET /api/metricas/actividad`. Cada sección maneja de forma independiente su estado de carga y `503` con botón "Reintentar".
+- Cómo se prueba: en `http://localhost:5173/dashboard`, verificar las tarjetas de Resumen, Plataformas, Temas y Actividad (y su estado `503` con botón Reintentar si Capella no es alcanzable desde la red actual).
+- PETICIÓN →CC / →AG (si aplica): ninguna.
