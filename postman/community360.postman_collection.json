@@ -736,7 +736,7 @@
                   "pm.test('Sin consentimiento, ubicacion es null', () => r.datos.forEach(revisarUsuario));",
                   "// Para la petición 15: un usuario sin consentimiento de esta página",
                   "const sinConsentimiento = r.datos.find(u => !u.consentimiento_datos);",
-                  "pm.variables.set('c360_id_sin_consentimiento', sinConsentimiento ? sinConsentimiento.id_usuario : '');"
+                  "pm.environment.set('c360_id_sin_consentimiento', sinConsentimiento ? sinConsentimiento.id_usuario : '');"
                 ]
               }
             }
@@ -861,7 +861,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (!pm.variables.get('c360_id_sin_consentimiento')) {",
+                  "if (!pm.environment.get('c360_id_sin_consentimiento')) {",
                   "    pm.test('Primero envía 13. Usuarios (página 1).', () => pm.expect.fail('Petición no enviada'));",
                   "    pm.execution.skipRequest();",
                   "}"
@@ -1322,6 +1322,459 @@
               ]
             },
             "description": "Cierra la sesión de la Fase 4."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Fase 4 · CRUD (admin)",
+      "item": [
+        {
+          "name": "25. Login admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const correo = pm.environment.get('c360_correo_admin');",
+                  "const password = pm.environment.get('c360_password_admin');",
+                  "if (!correo || !password) {",
+                  "    pm.test('Llena c360_correo_admin y c360_password_admin en el entorno COMMUNITY 360 (valor local).', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "// Si el login falla, que no quede un token anterior",
+                  "pm.environment.set('c360_token', '');",
+                  "// JSON.stringify pone las comillas y protege caracteres como \" o \\",
+                  "pm.variables.set('c360_correo_json', JSON.stringify(correo));",
+                  "pm.variables.set('c360_password_json', JSON.stringify(password));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token y usuario con rol admin', () => {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(r.tipo).to.eql('bearer');",
+                  "    pm.expect(r.expira_en).to.eql(3600);",
+                  "    pm.expect(r.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(r.usuario).to.have.all.keys('id_admin', 'nombre', 'correo', 'rol');",
+                  "    pm.expect(r.usuario.rol).to.eql('admin');",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('c360_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/login",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Sesión de admin para el CRUD. Guarda el token en c360_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": {{c360_correo_json}},\n  \"password\": {{c360_password_json}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "26. Crear interacción",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('c360_id_interaccion', '');",
+                  "pm.environment.set('c360_interaccion_json', '');",
+                  "// Un usuario real del padrón; la fecha actual nunca es anterior a su ingreso",
+                  "pm.sendRequest({",
+                  "    url: pm.environment.get('c360_base_url') + '/api/usuarios?limite=1',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('c360_token') },",
+                  "}, (error, respuesta) => {",
+                  "    const usuario = !error && respuesta.code === 200 ? respuesta.json().datos[0] : null;",
+                  "    pm.variables.set('c360_cuerpo_json', JSON.stringify({",
+                  "        id_usuario: usuario ? usuario.id_usuario : '',",
+                  "        timestamp: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),",
+                  "        canal: 'discord', tipo: 'comentario', tema: 'musica', dispositivo: 'android',",
+                  "        texto: 'Interacción de demostración desde Postman',",
+                  "        sentimiento: 0.6, idioma: 'es', reacciones_recibidas: 0, etiquetas: ['musica'],",
+                  "    }));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.test('Sin campos de ubicación', () => ['pais', 'estado', 'ciudad', 'latitud', 'longitud'].forEach(c => pm.expect(pm.response.json()).to.not.have.property(c)));",
+                  "if (pm.response.code === 201) {",
+                  "    const r = pm.response.json();",
+                  "    pm.environment.set('c360_id_interaccion', r.id_interaccion);",
+                  "    // Lo que se manda al editar: el mismo cuerpo, sin los campos que pone el servidor",
+                  "    const { id_interaccion, longitud_texto, ...cuerpo } = r;",
+                  "    if (cuerpo.texto === null) delete cuerpo.texto;",
+                  "    pm.environment.set('c360_interaccion_json', JSON.stringify(cuerpo));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/interacciones",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "interacciones"
+              ]
+            },
+            "description": "Crea una interacción nueva de demostración con el primer usuario del padrón y la fecha actual. El servidor asigna el id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{{c360_cuerpo_json}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "27. Listar interacciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Paginación del contrato', () => pm.expect(pm.response.json()).to.have.all.keys('total', 'pagina', 'limite', 'datos'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/interacciones?pagina=1&limite=10",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "interacciones"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lista paginada, de la más reciente a la más antigua. Filtros: id_usuario, canal, tipo, tema, desde, hasta."
+          },
+          "response": []
+        },
+        {
+          "name": "28. Leer interacción",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('c360_id_interaccion');",
+                  "// Solo se toca la interacción que creó la petición Crear; nunca una del ETL",
+                  "if (!id) {",
+                  "    pm.test('Primero envía 26. Crear interacción.', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es la que se creó', () => pm.expect(pm.response.json().id_interaccion).to.eql(pm.environment.get('c360_id_interaccion')));",
+                  "pm.test('Sin campos de ubicación', () => ['pais', 'estado', 'ciudad', 'latitud', 'longitud'].forEach(c => pm.expect(pm.response.json()).to.not.have.property(c)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/interacciones/{{c360_id_interaccion}}",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "interacciones",
+                "{{c360_id_interaccion}}"
+              ]
+            },
+            "description": "Lee la interacción creada."
+          },
+          "response": []
+        },
+        {
+          "name": "29. Editar interacción",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('c360_id_interaccion');",
+                  "// Solo se toca la interacción que creó la petición Crear; nunca una del ETL",
+                  "if (!id) {",
+                  "    pm.test('Primero envía 26. Crear interacción.', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "const cuerpo = JSON.parse(pm.environment.get('c360_interaccion_json') || '{}');",
+                  "cuerpo.sentimiento = -0.3;",
+                  "cuerpo.texto = 'Interacción de demostración editada';",
+                  "pm.variables.set('c360_cuerpo_json', JSON.stringify(cuerpo));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cambió el sentimiento', () => pm.expect(pm.response.json().sentimiento).to.eql(-0.3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{c360_base_url}}/api/interacciones/{{c360_id_interaccion}}",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "interacciones",
+                "{{c360_id_interaccion}}"
+              ]
+            },
+            "description": "Edita la interacción creada: cambia texto y sentimiento.",
+            "body": {
+              "mode": "raw",
+              "raw": "{{c360_cuerpo_json}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "30. Borrar interacción",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.environment.get('c360_id_interaccion');",
+                  "// Solo se toca la interacción que creó la petición Crear; nunca una del ETL",
+                  "if (!id) {",
+                  "    pm.test('Primero envía 26. Crear interacción.', () => pm.expect.fail('Petición no enviada'));",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));",
+                  "if (pm.response.code === 204) {",
+                  "    pm.environment.set('c360_id_interaccion', '');",
+                  "    pm.environment.set('c360_interaccion_json', '');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/interacciones/{{c360_id_interaccion}}",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "interacciones",
+                "{{c360_id_interaccion}}"
+              ]
+            },
+            "description": "Borra (borrado físico) la interacción creada."
+          },
+          "response": []
+        },
+        {
+          "name": "31. Logout (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/auth/logout",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Cierra la sesión del CRUD."
           },
           "response": []
         }

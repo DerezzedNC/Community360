@@ -10,7 +10,7 @@ from tests.conftest import BaseFalsa
 
 POSTMAN = Path(__file__).resolve().parents[2] / "postman"
 # Las crean los scripts de la colección; no van en el entorno
-LOCALES = {"c360_correo_json", "c360_password_json", "c360_exp", "c360_id_sin_consentimiento"}
+LOCALES = {"c360_correo_json", "c360_password_json", "c360_exp", "c360_cuerpo_json"}
 SECRETAS = {"c360_password_admin", "c360_password_analista", "c360_token"}
 
 
@@ -93,7 +93,7 @@ def test_token_revocado_manda_el_token_guardado(coleccion):
 
 def test_fase_4_abre_su_propia_sesion(coleccion):
     # El token de la Fase 3 termina revocado: la carpeta de la Fase 4 inicia sesión antes
-    [fase4] = [c for c in coleccion["item"] if c["name"].startswith("Fase 4")]
+    [fase4] = [c for c in coleccion["item"] if c["name"] == "Fase 4 · Consultas"]
     nombres = [i["name"] for i in peticiones(fase4)]
     assert nombres[0] == "11. Login analista"
     assert nombres[-1].endswith(". Logout (analista)")
@@ -125,3 +125,15 @@ def test_la_coleccion_exige_su_entorno(coleccion):
     # Lanzar un error no detiene la petición; skipRequest sí
     assert "pm.execution.skipRequest()" in texto
     assert "throw " not in json.dumps(coleccion)
+
+
+def test_el_crud_solo_toca_la_interaccion_que_creo(coleccion):
+    [crud] = [c for c in coleccion["item"] if c["name"] == "Fase 4 · CRUD (admin)"]
+    nombres = [i["name"] for i in crud["item"]]
+    assert nombres[0].endswith("Login admin") and nombres[-1].endswith("Logout (admin)")
+    crear = por_nombre(coleccion, "Crear interacción")
+    assert "id_interaccion:" not in "".join(crear["event"][0]["script"]["exec"])  # el id lo pone el servidor
+    for texto in ("Leer interacción", "Editar interacción", "Borrar interacción"):
+        item = por_nombre(coleccion, texto)
+        assert item["request"]["url"]["path"][-1] == "{{c360_id_interaccion}}"
+        assert "pm.execution.skipRequest()" in json.dumps(item["event"])

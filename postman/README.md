@@ -46,6 +46,14 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | 17 a 22. Métricas | `200` (resumen, estatus, plataformas, temas, actividad, geografía) |
 | 23. Cuarentena | `200` |
 | 24. Logout (analista) | `204` |
+| **Fase 4 · CRUD (admin)** | |
+| 25. Login admin | `200` |
+| 26. Crear interacción | `201`, guarda el id en `c360_id_interaccion` |
+| 27. Listar interacciones | `200` |
+| 28. Leer interacción | `200` |
+| 29. Editar interacción | `200` |
+| 30. Borrar interacción | `204` |
+| 31. Logout (admin) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.
@@ -54,6 +62,7 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 - **13 y 14** revisan en cada usuario que, sin consentimiento, `ubicacion` sea `null`, y que la respuesta nunca traiga `latitud` ni `longitud`.
 - **15 necesita 13 antes**: toma de esa página el `id_usuario` de alguien sin consentimiento. Sirve para mostrar la regla de privacidad en la demostración.
 - **16** pide `limite=201`: la API responde `422` en lugar de recortarlo en silencio.
+- **La carpeta CRUD** usa la cuenta admin. 26 crea una interacción de demostración con el primer usuario del padrón y la fecha actual; 28, 29 y 30 leen, editan y borran **solo esa** (si `c360_id_interaccion` está vacía, no se envían). Nunca se toca una interacción del ETL.
 
 ## Evidencias (F3-09)
 

@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.9** (Fase 3 cerrada; en la Fase 4 ya están definidas todas las consultas: catálogos, usuarios, métricas y cuarentena; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+**Versión 0.10** (Fases 3 y 4 definidas: autenticación, consultas, métricas, cuarentena y CRUD de interacciones; la Fase 5 es propuesta).
 
 | Versión | Cambio |
 |---|---|
+| 0.10 | CRUD de interacciones definido: cuerpo cerrado (otro campo → `422`), borrado físico, formato de `404`, `409` y `422` (F4-01) |
 | 0.9 | `GET /api/cuarentena` definido: paginado, filtro `motivo`, `registro` sin geografía (F4-02f) |
 | 0.8 | `GET /api/metricas/*` definidos; geografía oculta grupos de menos de 3 usuarios; `503` también si Capella no responde (F4-02c, d y e) |
 | 0.7 | El `503` de TiDB también aplica si las conexiones del pool siguen ocupadas después de 10 s (F4-04) |
@@ -104,9 +105,9 @@ Se revoca el token con el que se hizo la petición. La cookie se borra siempre q
 
 ---
 
-## Fase 4 · API REST (propuesta)
+## Fase 4 · API REST
 
-### Interacciones (Couchbase Capella)
+### Interacciones (Couchbase Capella) · definido en v0.10
 
 | Método y ruta | Rol | Respuestas |
 |---|---|---|
@@ -128,6 +129,14 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 - Si el tipo no admite texto (`reaccion`), no lleva `texto`. Si lo admite, `texto` es obligatorio y `longitud_texto` lo calcula el servidor.
 - No se aceptan campos geográficos (`pais`, `estado`, `ciudad`, `latitud`, `longitud`).
 - `id_interaccion` es opcional en `POST`: si no viene, el servidor genera el siguiente (`I` + 7 dígitos).
+
+Detalle v0.10:
+- Cuerpo de `POST` y `PUT`: `id_usuario`, `timestamp` (`AAAA-MM-DDTHH:MM:SSZ`), `canal`, `tipo`, `tema`, `dispositivo`, `texto` (según el tipo, hasta 2000 caracteres), `sentimiento`, `idioma`, `reacciones_recibidas`, `etiquetas` (hasta 10; por omisión `[]`). En `POST` también `id_interaccion`. **Cualquier otro campo da `422`**: los de ubicación y también `longitud_texto`, que pone el servidor.
+- `PUT` reemplaza la interacción completa; el id va solo en la ruta.
+- `201` y `200` devuelven la interacción como en la lista (`texto` y `longitud_texto` son `null` si no hay texto). `404` → `{"detail": "Interacción no encontrada"}`. `409` → `{"detail": "Ya existe una interacción con ese id"}`.
+- Los `422` de las validaciones contra TiDB usan el formato de FastAPI: `{"detail": [{"type": "valor_invalido", "loc": ["body", "<campo>"], "msg": "..."}]}`.
+- `DELETE` es **borrado físico**. La lista va de la más reciente a la más antigua; `desde` y `hasta` usan el mismo formato que `timestamp`.
+- Las métricas ven cada cambio en la siguiente petición. `503` si falta Capella (o TiDB para validar).
 
 ### Consultas históricas (TiDB + Capella)
 

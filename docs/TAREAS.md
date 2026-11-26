@@ -24,7 +24,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F4-00 | [AG] | Estructura del dashboard y componentes de gráficas | — | hecho |
-| F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | en curso |
+| F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | hecho |
 | F4-02a | [CC] | `GET /api/catalogos`: los 8 catálogos de TiDB | F3-04 | hecho |
 | F4-02b | [CC] | `GET /api/usuarios` (paginado y con filtros) y `GET /api/usuarios/{id_usuario}`. `ubicacion` es `null` sin consentimiento, con prueba que lo garantice | F4-02a | hecho |
 | F4-04 | [CC] | Pool de conexiones a TiDB (pocas conexiones, ping antes de usar, renovación antes del cierre por inactividad) | F4-02b | hecho |
