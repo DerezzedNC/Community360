@@ -50,7 +50,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F6-01 | [CC] | `docs/INDICADORES.md` completo: indicadores dinámicos y cómo cambian con altas, cambios y bajas (parte de la versión de F4-02c) | F4-02e | hecho |
-| F6-02 | [AG] | Gráficas de barras, dona y mapa de calor, diseño responsivo | F5-02, F6-01 | pendiente |
+| F6-02 | [AG] | Gráficas de barras, dona y mapa de calor, diseño responsivo | F5-02, F6-01 | hecho |
 
 ## Verificaciones pendientes
 

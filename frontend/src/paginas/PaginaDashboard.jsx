@@ -16,10 +16,10 @@ import {
   consultarMetricasTemas,
 } from '../servicios/api';
 
-const NOMBRES_ESTATUS = {
-  activo: 'Activo',
-  en_riesgo: 'En riesgo',
-  inactivo: 'Inactivo',
+const ESTILOS_ESTATUS = {
+  activo: { nombre: 'Activo', color: '#10b981' },
+  en_riesgo: { nombre: 'En riesgo', color: '#f59e0b' },
+  inactivo: { nombre: 'Inactivo', color: '#64748b' },
 };
 
 const NOMBRES_DIA_SEMANA = {
@@ -33,7 +33,11 @@ const NOMBRES_DIA_SEMANA = {
 };
 
 export default function PaginaDashboard() {
-  const { obtenerNombreLegible } = useCatalogos();
+  const {
+    cargandoCatalogos,
+    errorCatalogos,
+    obtenerNombreLegible,
+  } = useCatalogos();
 
   const consultaEstatus = useConsultaApi(consultarMetricasEstatus);
   const consultaGeografia = useConsultaApi(consultarMetricasGeografia);
@@ -41,8 +45,8 @@ export default function PaginaDashboard() {
   const consultaTemas = useConsultaApi(consultarMetricasTemas);
   const consultaActividad = useConsultaApi(consultarMetricasActividad);
 
-  // Cuando llega un nuevo evento metricas.actualizadas tras un alta, cambio o baja,
-  // se refrescan en su lugar las gráficas que dependen de interacciones en Capella.
+  // Según docs/INDICADORES.md: al recibir metricas.actualizadas tras un alta, cambio o baja,
+  // solo cambian resumen, plataformas, temas y actividad; estatus y geografía no cambian con el CRUD.
   const manejarCambioTiempoReal = useCallback(() => {
     consultaPlataformas.refrescarSilencioso();
     consultaTemas.refrescarSilencioso();
@@ -61,16 +65,26 @@ export default function PaginaDashboard() {
   const [nivelGeografia, setNivelGeografia] = useState('estados');
   const [vistaTemas, setVistaTemas] = useState('interacciones');
 
+  const esperandoNombresCatalogo = cargandoCatalogos && !errorCatalogos;
+
   const datosDonaEstatus = useMemo(() => {
     const filas = consultaEstatus.datos?.datos;
     const total = Number(consultaEstatus.datos?.total ?? 0);
     if (!Array.isArray(filas) || filas.length === 0 || total === 0) {
       return [];
     }
-    return filas.map((fila) => ({
-      nombre: `${NOMBRES_ESTATUS[fila.estatus] || fila.estatus} (${fila.porcentaje}%)`,
-      valor: fila.usuarios,
-    }));
+    return filas.map((fila) => {
+      const meta = ESTILOS_ESTATUS[fila.estatus] || {
+        nombre: fila.estatus,
+        color: undefined,
+      };
+      return {
+        nombre: meta.nombre,
+        valor: fila.usuarios,
+        porcentaje: fila.porcentaje,
+        color: meta.color,
+      };
+    });
   }, [consultaEstatus.datos]);
 
   const configuracionGeografia = useMemo(() => {
@@ -99,11 +113,17 @@ export default function PaginaDashboard() {
         : `${item.estado} (${item.pais})`
     );
     const valores = ordenadaVisual.map((item) => item.usuarios);
-    const alturaCalculada = `${Math.max(300, ordenadaVisual.length * 30 + 60)}px`;
+    const alturaCalculada = `${Math.max(300, ordenadaVisual.length * 30 + 64)}px`;
 
     return {
       categorias,
-      series: [{ nombre: 'Usuarios con consentimiento', datos: valores }],
+      series: [
+        {
+          nombre: 'Usuarios con consentimiento',
+          datos: valores,
+          color: '#2563eb',
+        },
+      ],
       altura: alturaCalculada,
     };
   }, [consultaGeografia.datos, nivelGeografia]);
@@ -120,12 +140,14 @@ export default function PaginaDashboard() {
       ),
       series: [
         {
-          nombre: 'Usuarios',
+          nombre: 'Usuarios en padrón',
           datos: filas.map((fila) => fila.usuarios),
+          color: '#2563eb',
         },
         {
           nombre: 'Interacciones',
           datos: filas.map((fila) => fila.interacciones),
+          color: '#0ea5e9',
         },
       ],
     };
@@ -134,7 +156,13 @@ export default function PaginaDashboard() {
   const configuracionTemas = useMemo(() => {
     const filas = consultaTemas.datos?.datos;
     if (!Array.isArray(filas) || filas.length === 0) {
-      return { categorias: [], series: [], sinSentimiento: 0 };
+      return {
+        categorias: [],
+        series: [],
+        sinSentimiento: 0,
+        decimales: null,
+        tituloEje: 'Interacciones',
+      };
     }
 
     if (vistaTemas === 'sentimiento') {
@@ -152,9 +180,12 @@ export default function PaginaDashboard() {
           {
             nombre: 'Sentimiento promedio',
             datos: ordenada.map((fila) => fila.sentimiento_promedio),
+            color: '#6366f1',
           },
         ],
         sinSentimiento: filas.length - conDatos.length,
+        decimales: 3,
+        tituloEje: 'Promedio (-1 a 1)',
       };
     }
 
@@ -167,9 +198,12 @@ export default function PaginaDashboard() {
         {
           nombre: 'Interacciones',
           datos: ordenada.map((fila) => fila.interacciones),
+          color: '#0ea5e9',
         },
       ],
       sinSentimiento: 0,
+      decimales: null,
+      tituloEje: 'Interacciones',
     };
   }, [consultaTemas.datos, obtenerNombreLegible, vistaTemas]);
 
@@ -216,7 +250,7 @@ export default function PaginaDashboard() {
       etiquetasHorizontal,
       etiquetasVertical,
       celdas,
-      tituloHorizontal: `Hora (${zona})`,
+      tituloHorizontal: `Hora del día (${zona})`,
     };
   }, [consultaActividad.datos]);
 
@@ -248,12 +282,17 @@ export default function PaginaDashboard() {
         anchoCompleto
       >
         <div className="barra-estado-ws">
-          <div className={`insignia-ws ${claseEstadoWs}`} role="status" aria-live="polite">
+          <div
+            className={`insignia-ws ${claseEstadoWs}`}
+            role="status"
+            aria-live="polite"
+          >
             <span className="insignia-ws__punto" aria-hidden="true" />
             <span>{textoEstadoWs}</span>
           </div>
 
-          {(conexionWs === 'reconectando' || conexionWs === 'origen_rechazado') && (
+          {(conexionWs === 'reconectando' ||
+            conexionWs === 'origen_rechazado') && (
             <button
               type="button"
               className="boton-secundario"
@@ -278,32 +317,40 @@ export default function PaginaDashboard() {
             <div className="rejilla-kpis">
               <div className="tarjeta-kpi">
                 <p className="tarjeta-kpi__etiqueta">Usuarios en padrón</p>
-                <p className="tarjeta-kpi__valor">{r.usuarios}</p>
+                <p className="tarjeta-kpi__valor">
+                  {Number(r.usuarios).toLocaleString('es-MX')}
+                </p>
               </div>
               <div className="tarjeta-kpi">
                 <p className="tarjeta-kpi__etiqueta">Usuarios activos</p>
-                <p className="tarjeta-kpi__valor">{r.usuarios_activos}</p>
+                <p className="tarjeta-kpi__valor">
+                  {Number(r.usuarios_activos).toLocaleString('es-MX')}
+                </p>
                 <p className="tarjeta-kpi__subtexto">
-                  {r.porcentaje_activos}% del total
+                  {Number(r.porcentaje_activos).toFixed(1)}% del total
                 </p>
               </div>
               <div className="tarjeta-kpi">
                 <p className="tarjeta-kpi__etiqueta">Con consentimiento</p>
                 <p className="tarjeta-kpi__valor">
-                  {r.usuarios_con_consentimiento}
+                  {Number(r.usuarios_con_consentimiento).toLocaleString('es-MX')}
                 </p>
               </div>
-              <div className="tarjeta-kpi">
+              <div className="tarjeta-kpi tarjeta-kpi--dinamica">
                 <p className="tarjeta-kpi__etiqueta">Interacciones</p>
-                <p className="tarjeta-kpi__valor">{r.interacciones}</p>
+                <p className="tarjeta-kpi__valor">
+                  {Number(r.interacciones).toLocaleString('es-MX')}
+                </p>
+                <p className="tarjeta-kpi__subtexto">En tiempo real</p>
               </div>
-              <div className="tarjeta-kpi">
+              <div className="tarjeta-kpi tarjeta-kpi--dinamica">
                 <p className="tarjeta-kpi__etiqueta">Usuarios que interactúan</p>
                 <p className="tarjeta-kpi__valor">
-                  {r.usuarios_que_interactuan}
+                  {Number(r.usuarios_que_interactuan).toLocaleString('es-MX')}
                 </p>
+                <p className="tarjeta-kpi__subtexto">En tiempo real</p>
               </div>
-              <div className="tarjeta-kpi">
+              <div className="tarjeta-kpi tarjeta-kpi--dinamica">
                 <p className="tarjeta-kpi__etiqueta">Sentimiento promedio</p>
                 <p className="tarjeta-kpi__valor">
                   {r.sentimiento_promedio !== null &&
@@ -315,12 +362,15 @@ export default function PaginaDashboard() {
               </div>
               <div className="tarjeta-kpi">
                 <p className="tarjeta-kpi__etiqueta">En cuarentena</p>
-                <p className="tarjeta-kpi__valor">{r.en_cuarentena}</p>
+                <p className="tarjeta-kpi__valor">
+                  {Number(r.en_cuarentena).toLocaleString('es-MX')}
+                </p>
               </div>
             </div>
             {(r.generado_en || ultimoEventoTs) && (
               <p className="nota-pie-resumen">
-                Corte generado en UTC: <code>{r.generado_en || ultimoEventoTs}</code>
+                Corte generado en UTC:{' '}
+                <code>{r.generado_en || ultimoEventoTs}</code>
               </p>
             )}
           </>
@@ -354,20 +404,24 @@ export default function PaginaDashboard() {
       <TarjetaSeccion
         id="seccion-estatus"
         titulo="Usuarios por estatus"
-        descripcion="Distribución de cuentas según su estatus operativo en el padrón."
+        descripcion="Distribución histórica del padrón según los días desde su última actividad registrada."
         rutaApi="GET /api/metricas/estatus"
       >
         {consultaEstatus.datos &&
           !consultaEstatus.cargando &&
           !consultaEstatus.error && (
             <p className="nota-metrica">
-              Total en padrón: <strong>{consultaEstatus.datos.total}</strong>{' '}
+              Total en padrón:{' '}
+              <strong>
+                {Number(consultaEstatus.datos.total).toLocaleString('es-MX')}
+              </strong>{' '}
               usuarios
             </p>
           )}
         <GraficaDona
           datos={datosDonaEstatus}
           nombreSerie="Usuarios"
+          altura="310px"
           cargando={consultaEstatus.cargando}
           error={consultaEstatus.error}
           alReintentar={consultaEstatus.reintentar}
@@ -388,7 +442,11 @@ export default function PaginaDashboard() {
             <div className="barra-controles-seccion">
               <p className="nota-metrica">
                 Con ubicación:{' '}
-                <strong>{consultaGeografia.datos.usuarios_con_ubicacion}</strong>{' '}
+                <strong>
+                  {Number(
+                    consultaGeografia.datos.usuarios_con_ubicacion
+                  ).toLocaleString('es-MX')}
+                </strong>{' '}
                 · Se omiten grupos menores a{' '}
                 <strong>{consultaGeografia.datos.minimo_por_grupo}</strong>{' '}
                 usuarios
@@ -429,6 +487,7 @@ export default function PaginaDashboard() {
             categorias={configuracionGeografia.categorias}
             series={configuracionGeografia.series}
             horizontal
+            tituloEjeValores="Usuarios"
             altura={configuracionGeografia.altura}
             cargando={consultaGeografia.cargando}
             error={consultaGeografia.error}
@@ -441,15 +500,16 @@ export default function PaginaDashboard() {
       <TarjetaSeccion
         id="seccion-plataformas"
         titulo="Plataformas"
-        descripcion="Comparativa de usuarios registrados (TiDB) e interacciones (Capella) por plataforma."
+        descripcion="Comparativa entre usuarios registrados en TiDB e interacciones dinámicas en Capella por plataforma."
         rutaApi="GET /api/metricas/plataformas"
       >
         <GraficaBarras
           categorias={configuracionPlataformas.categorias}
           series={configuracionPlataformas.series}
           mostrarLeyenda
-          altura="320px"
-          cargando={consultaPlataformas.cargando}
+          tituloEjeValores="Cantidad"
+          altura="330px"
+          cargando={consultaPlataformas.cargando || esperandoNombresCatalogo}
           error={consultaPlataformas.error}
           alReintentar={consultaPlataformas.reintentar}
           etiquetaAria="Usuarios e interacciones por plataforma"
@@ -459,7 +519,7 @@ export default function PaginaDashboard() {
       <TarjetaSeccion
         id="seccion-temas"
         titulo="Temas"
-        descripcion="Volumen de interacciones y sentimiento promedio agrupados por tema."
+        descripcion="Volumen dinámico de interacciones y sentimiento promedio agrupados por tema del catálogo."
         rutaApi="GET /api/metricas/temas"
       >
         {consultaTemas.datos &&
@@ -470,7 +530,7 @@ export default function PaginaDashboard() {
                 {vistaTemas === 'sentimiento' &&
                 configuracionTemas.sinSentimiento > 0
                   ? `${configuracionTemas.sinSentimiento} tema(s) sin interacciones omitidos del promedio`
-                  : 'Todos los temas del catálogo'}
+                  : 'Nombres traducidos desde el catálogo de temas'}
               </p>
               <div
                 className="grupo-conmutador"
@@ -507,8 +567,10 @@ export default function PaginaDashboard() {
           categorias={configuracionTemas.categorias}
           series={configuracionTemas.series}
           horizontal
-          altura="320px"
-          cargando={consultaTemas.cargando}
+          decimales={configuracionTemas.decimales}
+          tituloEjeValores={configuracionTemas.tituloEje}
+          altura="330px"
+          cargando={consultaTemas.cargando || esperandoNombresCatalogo}
           error={consultaTemas.error}
           alReintentar={consultaTemas.reintentar}
           etiquetaAria="Métricas por tema"
@@ -517,8 +579,8 @@ export default function PaginaDashboard() {
 
       <TarjetaSeccion
         id="seccion-actividad"
-        titulo="Actividad"
-        descripcion="Mapa de calor de interacciones por día de la semana y hora en UTC."
+        titulo="Actividad por día y hora"
+        descripcion="Mapa de calor dinámico de interacciones agrupadas por día de la semana y hora en UTC."
         rutaApi="GET /api/metricas/actividad"
         anchoCompleto
       >
@@ -527,21 +589,27 @@ export default function PaginaDashboard() {
           !consultaActividad.error && (
             <p className="nota-metrica">
               Zona horaria del cálculo:{' '}
-              <strong>{consultaActividad.datos.zona_horaria}</strong> (1 = Lunes …
-              7 = Domingo)
+              <strong>{consultaActividad.datos.zona_horaria}</strong> · Se
+              actualiza automáticamente ante altas, cambios o bajas
             </p>
           )}
-        <GraficaMapaCalor
-          etiquetasHorizontal={configuracionActividad.etiquetasHorizontal}
-          etiquetasVertical={configuracionActividad.etiquetasVertical}
-          tituloHorizontal={configuracionActividad.tituloHorizontal}
-          celdas={configuracionActividad.celdas}
-          altura="360px"
-          cargando={consultaActividad.cargando}
-          error={consultaActividad.error}
-          alReintentar={consultaActividad.reintentar}
-          etiquetaAria="Mapa de calor de actividad por día y hora en UTC"
-        />
+        <div className="contenedor-mapa-calor">
+          <div className="contenedor-mapa-calor__interno">
+            <GraficaMapaCalor
+              etiquetasHorizontal={configuracionActividad.etiquetasHorizontal}
+              etiquetasVertical={configuracionActividad.etiquetasVertical}
+              tituloHorizontal={configuracionActividad.tituloHorizontal}
+              tituloVertical="Día"
+              nombreMetrica="Interacciones"
+              celdas={configuracionActividad.celdas}
+              altura="360px"
+              cargando={consultaActividad.cargando}
+              error={consultaActividad.error}
+              alReintentar={consultaActividad.reintentar}
+              etiquetaAria="Mapa de calor de actividad por día y hora en UTC"
+            />
+          </div>
+        </div>
       </TarjetaSeccion>
     </div>
   );

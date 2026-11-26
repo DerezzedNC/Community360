@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import LienzoEcharts from './LienzoEcharts';
+import LienzoEcharts, { escaparHtml } from './LienzoEcharts';
 
 // Componente reutilizable de mapa de calor.
 // No asume qué dimensión va en cada eje: ejes y celdas llegan íntegramente desde la API por props.
@@ -9,6 +9,7 @@ export default function GraficaMapaCalor({
   etiquetasVertical,
   tituloHorizontal = '',
   tituloVertical = '',
+  nombreMetrica = 'Valor',
   celdas,
   altura = '340px',
   cargando = false,
@@ -41,16 +42,30 @@ export default function GraficaMapaCalor({
 
     if (!Number.isFinite(minimo)) minimo = 0;
     if (!Number.isFinite(maximo)) maximo = minimo;
+    const maximoVisual = Math.max(maximo, minimo + 1);
 
     return {
+      animationDurationUpdate: 320,
       tooltip: {
         position: 'top',
+        confine: true,
+        backgroundColor: 'rgba(15, 23, 42, 0.94)',
+        borderWidth: 0,
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: (param) => {
+          const val = Array.isArray(param.value) ? param.value : [];
+          const etqX = escaparHtml(etiquetasHorizontal[val[0]] ?? '');
+          const etqY = escaparHtml(etiquetasVertical[val[1]] ?? '');
+          const cant =
+            val[2] !== undefined ? Number(val[2]).toLocaleString('es-MX') : '0';
+          return `<strong>${etqY} · ${etqX}</strong><br/>${escaparHtml(nombreMetrica)}: <strong>${cant}</strong>`;
+        },
       },
       grid: {
-        top: 20,
-        right: 24,
-        bottom: 56,
-        left: 16,
+        top: tituloVertical ? 26 : 16,
+        right: 20,
+        bottom: 64,
+        left: 12,
         containLabel: true,
       },
       xAxis: {
@@ -58,37 +73,52 @@ export default function GraficaMapaCalor({
         name: tituloHorizontal,
         nameLocation: 'middle',
         nameGap: 28,
+        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 600 },
         data: etiquetasHorizontal,
         splitArea: { show: true },
-        axisLabel: { color: '#475569', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#cbd5e1' } },
+        axisLabel: {
+          color: '#475569',
+          fontSize: 11,
+          hideOverlap: true,
+        },
       },
       yAxis: {
         type: 'category',
         name: tituloVertical,
+        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 600 },
         data: etiquetasVertical,
         splitArea: { show: true },
-        axisLabel: { color: '#475569', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#cbd5e1' } },
+        axisLabel: { color: '#334155', fontSize: 11 },
       },
       visualMap: {
         min: minimo,
-        max: maximo,
+        max: maximoVisual,
         calculable: true,
         orient: 'horizontal',
         left: 'center',
         bottom: 0,
+        itemWidth: 14,
+        itemHeight: 130,
         inRange: {
-          color: ['#eff6ff', '#93c5fd', '#2563eb', '#1e3a8a'],
+          color: ['#f1f5f9', '#bfdbfe', '#3b82f6', '#1e3a8a'],
         },
         textStyle: { color: '#475569', fontSize: 11 },
       },
       series: [
         {
+          name: nombreMetrica,
           type: 'heatmap',
           data: celdas,
+          itemStyle: {
+            borderColor: '#ffffff',
+            borderWidth: 1,
+          },
           emphasis: {
             itemStyle: {
               shadowBlur: 6,
-              shadowColor: 'rgba(15, 23, 42, 0.25)',
+              shadowColor: 'rgba(15, 23, 42, 0.28)',
             },
           },
         },
@@ -98,6 +128,7 @@ export default function GraficaMapaCalor({
     celdas,
     etiquetasHorizontal,
     etiquetasVertical,
+    nombreMetrica,
     sinDatos,
     tituloHorizontal,
     tituloVertical,

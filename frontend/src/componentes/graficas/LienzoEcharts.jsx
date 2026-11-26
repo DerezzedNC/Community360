@@ -31,6 +31,15 @@ export const PALETA_C360 = [
   '#64748b',
 ];
 
+export function escaparHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function LienzoEcharts({
   opcion,
   altura = '300px',
