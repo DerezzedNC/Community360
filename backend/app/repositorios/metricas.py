@@ -49,6 +49,25 @@ def nombres_de_tipo(con: Connection) -> dict[str, str]:
     return {f["codigo"]: f["nombre"] for f in _filas(con, "SELECT codigo, nombre FROM tipo_interaccion")}
 
 
+def rangos_de_edad(con: Connection) -> dict[str, str]:
+    """Ordenados por código, que va de menor a mayor edad."""
+    filas = _filas(con, "SELECT codigo, descripcion FROM rango_edad ORDER BY codigo")
+    return {f["codigo"]: f["descripcion"] for f in filas}
+
+
+def nombres_de_interes(con: Connection) -> dict[str, str]:
+    return {f["codigo"]: f["nombre"] for f in _filas(con, "SELECT codigo, nombre FROM interes")}
+
+
+def usuarios_por_edad_e_interes(con: Connection) -> list[dict]:
+    filas = _filas(
+        con,
+        "SELECT cod_rango_edad, cod_interes, COUNT(*) AS usuarios FROM usuario "
+        "GROUP BY cod_rango_edad, cod_interes",
+    )
+    return [{**f, "usuarios": int(f["usuarios"])} for f in filas]
+
+
 def nombres_de_etiqueta(con: Connection) -> dict[str, str]:
     return {f["codigo"]: f["nombre"] for f in _filas(con, "SELECT codigo, nombre FROM etiqueta")}
 

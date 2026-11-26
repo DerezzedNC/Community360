@@ -54,7 +54,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | F6-03 | [CC] | `GET /api/metricas/puntos-calientes` (TiDB): cuadrícula de 0.2°, solo con consentimiento, solo el centro de cada cuadro y oculta los de menos de 3 | F4-02d | hecho |
 | F6-04 | [CC] | WebSocket bidireccional: `{"accion": "actualizar"}`, error sin cerrar ante un mensaje desconocido y `cambio` (creada, editada, borrada + `id_interaccion`) en `metricas.actualizadas` | F5-01 | hecho |
 | F6-05 | [CC] | `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (top 10), de Capella con nombres de los catálogos | F4-02e | hecho |
-| F6-06 | [CC] | `GET /api/metricas/demografia` (TiDB): usuarios por rango de edad e interés principal | F4-02d | en curso |
+| F6-06 | [CC] | `GET /api/metricas/demografia` (TiDB): usuarios por rango de edad e interés principal | F4-02d | hecho |
 
 ## Verificaciones pendientes
 

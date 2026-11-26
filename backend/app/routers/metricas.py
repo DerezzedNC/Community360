@@ -270,6 +270,64 @@ def geografia(request: Request) -> Geografia:
         return ocultar_grupos_chicos(m.usuarios_por_ciudad(con))
 
 
+# --- Demografía ---------------------------------------------------------------------
+
+
+class FilaRango(BaseModel):
+    rango_edad: str
+    descripcion: str | None
+    usuarios: int
+    porcentaje: float
+
+
+class FilaInteres(BaseModel):
+    interes: str
+    nombre: str | None
+    usuarios: int
+    porcentaje: float
+
+
+class FilaCruce(BaseModel):
+    rango_edad: str
+    interes: str
+    usuarios: int
+
+
+class Demografia(BaseModel):
+    total: int
+    rangos_edad: list[FilaRango]
+    intereses: list[FilaInteres]
+    cruce: list[FilaCruce]
+
+
+def armar_demografia(rangos: dict[str, str], intereses: dict[str, str], filas: list[dict]) -> Demografia:
+    total = sum(f["usuarios"] for f in filas)
+    por_rango: dict[str, int] = {}
+    por_interes: dict[str, int] = {}
+    for f in filas:
+        por_rango[f["cod_rango_edad"]] = por_rango.get(f["cod_rango_edad"], 0) + f["usuarios"]
+        por_interes[f["cod_interes"]] = por_interes.get(f["cod_interes"], 0) + f["usuarios"]
+    # Primero el orden del catálogo (de menor a mayor edad); al final, códigos fuera del catálogo
+    orden_rangos = list(rangos) + sorted(set(por_rango) - set(rangos))
+    return Demografia(
+        total=total,
+        rangos_edad=[FilaRango(rango_edad=c, descripcion=rangos.get(c), usuarios=por_rango.get(c, 0),
+                               porcentaje=porcentaje(por_rango.get(c, 0), total)) for c in orden_rangos],
+        intereses=[FilaInteres(interes=c, nombre=intereses.get(c), usuarios=por_interes.get(c, 0),
+                               porcentaje=porcentaje(por_interes.get(c, 0), total))
+                   for c in sorted(set(intereses) | set(por_interes))],
+        cruce=[FilaCruce(rango_edad=f["cod_rango_edad"], interes=f["cod_interes"], usuarios=f["usuarios"])
+               for f in sorted(filas, key=lambda f: (orden_rangos.index(f["cod_rango_edad"]), f["cod_interes"]))],
+    )
+
+
+@router.get("/demografia")
+def demografia(request: Request) -> Demografia:
+    with request.app.state.tidb.conexion() as con:
+        return armar_demografia(m.rangos_de_edad(con), m.nombres_de_interes(con),
+                                m.usuarios_por_edad_e_interes(con))
+
+
 # --- Puntos calientes ----------------------------------------------------------------
 
 

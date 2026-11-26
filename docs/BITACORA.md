@@ -226,3 +226,8 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué hace: `GET /api/metricas/tipos` (una fila por código de `tipo_interaccion`, con `nombre`, `interacciones` y `porcentaje`) y `GET /api/metricas/etiquetas` (top 10 por interacciones que llevan la etiqueta, con `nombre`). Conteos de Capella, nombres de los catálogos de TiDB. Contrato v0.14; fórmulas y fila de altas, cambios y bajas en `INDICADORES.md`.
 - Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_metricas.py` (con `-m nube`: la suma de `tipos` es igual al resumen; hoy hay 7 etiquetas en uso). Postman 34 y 35.
 - Aviso →AG: ya traen `nombre`, no hace falta cruzarlas con `/api/catalogos`. Sirven para una dona (tipos) y barras horizontales (etiquetas). Las dos cambian con el CRUD: volver a pedirlas al recibir `metricas.actualizadas`.
+
+## 2026-11-25 · [CC] · F6-06 Demografía
+- Qué hace: `GET /api/metricas/demografia` (TiDB): `total`, `rangos_edad` (de menor a mayor edad, con `descripcion`), `intereses` (interés principal, con `nombre`) y `cruce` rango × interés (solo combinaciones con usuarios). No usa ubicación. Contrato v0.15; fórmulas en `INDICADORES.md`.
+- Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_metricas.py` (con `-m nube`: `total` y la suma del cruce son iguales a `usuarios` del resumen). Postman 36.
+- Aviso →AG: barras por rango y por interés, y mapa de calor con `cruce` (las combinaciones que faltan son 0). No cambia con el CRUD.

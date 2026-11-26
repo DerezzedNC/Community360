@@ -2005,7 +2005,55 @@
           "response": []
         },
         {
-          "name": "36. Logout (analista)",
+          "name": "36. Métricas: demografía",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Rangos e intereses con nombre del catálogo', () => {",
+                  "    r.rangos_edad.forEach(f => pm.expect(f).to.have.all.keys('rango_edad', 'descripcion', 'usuarios', 'porcentaje'));",
+                  "    r.intereses.forEach(f => pm.expect(f).to.have.all.keys('interes', 'nombre', 'usuarios', 'porcentaje'));",
+                  "});",
+                  "pm.test('Cada lista suma el total', () => [r.rangos_edad, r.intereses, r.cruce].forEach(l => pm.expect(l.reduce((s, f) => s + f.usuarios, 0)).to.eql(r.total)));",
+                  "pm.test('Sin ubicación', () => ['latitud', 'longitud', 'ciudad', 'id_usuario'].forEach(p => pm.expect(pm.response.text()).to.not.include(p)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/demografia",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "demografia"
+              ]
+            },
+            "description": "Usuarios por rango de edad, por interés principal y cruce de los dos (TiDB). Sin ubicación."
+          },
+          "response": []
+        },
+        {
+          "name": "37. Logout (analista)",
           "event": [
             {
               "listen": "test",

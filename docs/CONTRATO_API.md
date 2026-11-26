@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.14** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
+**Versión 0.15** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
 
 | Versión | Cambio |
 |---|---|
+| 0.15 | `GET /api/metricas/demografia`: usuarios por rango de edad, por interés principal y cruce de los dos (F6-06) |
 | 0.14 | `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (top 10), de Capella con nombres de los catálogos (F6-05) |
 | 0.13 | WebSocket bidireccional: el cliente pide `{"accion": "actualizar"}`; un mensaje desconocido recibe `evento: error` sin cerrar; `metricas.actualizadas` trae `cambio` (F6-04) |
 | 0.12 | `GET /api/metricas/puntos-calientes`: mapa de calor en cuadros de 0.2°, solo el centro de cada cuadro y sin cuadros de menos de 3; excepción a la regla de coordenadas (F6-03) |
@@ -159,6 +160,7 @@ Detalle v0.10:
 | `GET /api/metricas/puntos-calientes` | **Definido en v0.12**: ver abajo |
 | `GET /api/metricas/tipos` | **Definido en v0.14**: ver abajo |
 | `GET /api/metricas/etiquetas` | **Definido en v0.14**: ver abajo |
+| `GET /api/metricas/demografia` | **Definido en v0.15**: ver abajo |
 | `GET /api/cuarentena` | **Definido en v0.9**: ver abajo |
 
 ### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
@@ -284,6 +286,23 @@ Conteos de Capella con el nombre legible del catálogo de TiDB (`tipo_interaccio
 - `etiquetas`: las 10 más usadas (o menos, si no hay 10 en uso), de más a menos; empate por código. `interacciones` = interacciones que llevan la etiqueta. No incluye etiquetas sin uso.
 - `nombre` es `null` si un documento usa un código que no está en el catálogo (no debería pasar: el ETL y el CRUD los validan).
 - `401` sin sesión, `503` si falta TiDB o Capella.
+
+### `GET /api/metricas/demografia` (requiere sesión, ambos roles) · v0.15
+
+Usuarios de TiDB por rango de edad (`cod_rango_edad`) e interés principal (`cod_interes`). Sin parámetros.
+
+```json
+{
+  "total": 1068,
+  "rangos_edad": [ { "rango_edad": "18_24", "descripcion": "18-24", "usuarios": 310, "porcentaje": 29.0 } ],
+  "intereses":   [ { "interes": "arte_digital", "nombre": "Arte digital", "usuarios": 120, "porcentaje": 11.2 } ],
+  "cruce":       [ { "rango_edad": "18_24", "interes": "arte_digital", "usuarios": 35 } ]
+}
+```
+
+- `rangos_edad` e `intereses`: una fila por código del catálogo, incluso con 0. `rangos_edad` va de menor a mayor edad; `intereses`, por código. `descripcion` y `nombre` salen del catálogo.
+- `cruce`: solo las combinaciones con al menos 1 usuario (las que faltan son 0), en el mismo orden. Sirve para un mapa de calor rango × interés.
+- No usa ubicación. `401` sin sesión, `503` si TiDB no responde.
 
 ### `GET /api/cuarentena` (requiere sesión, ambos roles) · v0.9
 

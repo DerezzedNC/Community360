@@ -59,7 +59,8 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | 33. Métricas: puntos calientes | `200`, cuadros de 3 o más, solo centros de la cuadrícula |
 | 34. Métricas: tipos de interacción | `200`, la suma es `total` |
 | 35. Métricas: etiquetas más usadas | `200`, hasta 10, de más a menos |
-| 36. Logout (analista) | `204` |
+| 36. Métricas: demografía | `200`, la suma del cruce es `total` |
+| 37. Logout (analista) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.

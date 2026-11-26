@@ -12,7 +12,7 @@ from app.repositorios import metricas
 from tests.conftest import BaseFalsa
 
 RUTAS = ["resumen", "estatus", "plataformas", "temas", "actividad", "geografia", "puntos-calientes",
-         "tipos", "etiquetas"]
+         "tipos", "etiquetas", "demografia"]
 
 # fragmento de la consulta -> filas que devuelve
 TIDB = {
@@ -20,6 +20,13 @@ TIDB = {
     "GROUP BY estatus": [{"estatus": "activo", "usuarios": 4}, {"estatus": "inactivo", "usuarios": 6}],
     "FROM plataforma p": [{"codigo": "discord", "usuarios": 6}, {"codigo": "tiktok", "usuarios": 0}],
     "SELECT codigo FROM tema": [{"codigo": "musica"}, {"codigo": "memes_humor"}],
+    "FROM rango_edad": [{"codigo": "18_24", "descripcion": "18-24"}, {"codigo": "25_31", "descripcion": "25-31"}],
+    "FROM interes": [{"codigo": "arte_digital", "nombre": "Arte digital"}, {"codigo": "musica", "nombre": "Música"}],
+    "GROUP BY cod_rango_edad, cod_interes": [
+        {"cod_rango_edad": "25_31", "cod_interes": "arte_digital", "usuarios": 3},
+        {"cod_rango_edad": "18_24", "cod_interes": "arte_digital", "usuarios": 4},
+        {"cod_rango_edad": "18_24", "cod_interes": "musica", "usuarios": 1},
+    ],
     "FROM tipo_interaccion": [{"codigo": "comentario", "nombre": "Comentario"},
                               {"codigo": "reaccion", "nombre": "Reacción"}],
     "FROM etiqueta": [{"codigo": f"e{n:02}", "nombre": f"Etiqueta {n}"} for n in range(12)],
@@ -158,6 +165,25 @@ def test_etiquetas_top_10_de_mas_a_menos(cliente):
     assert r["datos"][5]["interacciones"] == r["datos"][6]["interacciones"] == 15  # empate: por código
 
 
+def test_demografia_por_edad_interes_y_cruce(cliente):
+    assert pedir(cliente, "demografia") == {
+        "total": 8,
+        "rangos_edad": [
+            {"rango_edad": "18_24", "descripcion": "18-24", "usuarios": 5, "porcentaje": 62.5},
+            {"rango_edad": "25_31", "descripcion": "25-31", "usuarios": 3, "porcentaje": 37.5},
+        ],
+        "intereses": [
+            {"interes": "arte_digital", "nombre": "Arte digital", "usuarios": 7, "porcentaje": 87.5},
+            {"interes": "musica", "nombre": "Música", "usuarios": 1, "porcentaje": 12.5},
+        ],
+        "cruce": [
+            {"rango_edad": "18_24", "interes": "arte_digital", "usuarios": 4},
+            {"rango_edad": "18_24", "interes": "musica", "usuarios": 1},
+            {"rango_edad": "25_31", "interes": "arte_digital", "usuarios": 3},
+        ],
+    }
+
+
 def test_actividad_168_celdas_en_utc(cliente):
     r = pedir(cliente, "actividad")
     assert r["zona_horaria"] == "UTC" and len(r["datos"]) == 168
@@ -220,7 +246,7 @@ def test_puntos_calientes_agrupa_en_tidb_solo_con_consentimiento():
 
 
 @pytest.mark.parametrize("ruta", ["resumen", "estatus", "plataformas", "temas", "geografia", "puntos-calientes",
-                                  "tipos", "etiquetas"])
+                                  "tipos", "etiquetas", "demografia"])
 def test_tidb_caida_503(cliente, tidb, ruta):
     tidb.falla = pymysql.err.OperationalError(2003, "detalle privado")
     r = cliente.get(f"/api/metricas/{ruta}")
@@ -244,6 +270,9 @@ def test_metricas_con_bases_reales():
     assert {ruta: x.status_code for ruta, x in r.items()} == {ruta: 200 for ruta in RUTAS}
     resumen = r["resumen"].json()
     assert resumen["usuarios"] == r["estatus"].json()["total"]
+    demo = r["demografia"].json()
+    assert resumen["usuarios"] == demo["total"] == sum(f["usuarios"] for f in demo["cruce"])
+    assert all(f["descripcion"] for f in demo["rangos_edad"]) and all(f["nombre"] for f in demo["intereses"])
     assert resumen["interacciones"] == sum(c["interacciones"] for c in r["actividad"].json()["datos"])
     assert resumen["interacciones"] == sum(t["interacciones"] for t in r["temas"].json()["datos"])
     assert resumen["interacciones"] == r["tipos"].json()["total"]
