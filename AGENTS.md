@@ -7,7 +7,7 @@ Este proyecto lo trabajan **dos equipos de agentes al mismo tiempo** sobre esta 
 | Claude Code | Claude Code (terminal) | `[CC]` | `backend/`, `postman/`, `docs/CONTRATO_API.md`, `docs/INDICADORES.md` |
 | Antigravity | Agentes de Google Antigravity | `[AG]` | `frontend/`, `evidencias/` |
 
-> **Cambio de rol temporal (F7-01, desde 2026-11-25):** mientras dure el rediseño visual, **[CC] también es dueño de `frontend/`** y trabaja solo en la rama `rediseno` (nada se une a `main` sin aprobación de Angel). **[AG] no toca `frontend/`** hasta que Angel cierre F7-01. La guía es `docs/DISENO.md`.
+> **Fin del cambio de rol (2026-11-26):** el rediseño F7-01 y F7-02 se unió a `main` (etiqueta `v2.0`). **`frontend/` vuelve a [AG]**; [CC] ya no lo edita. La guía visual sigue siendo `docs/DISENO.md`.
 
 Angel (el alumno) es quien decide. Si algo no está claro o una tarea pide salirse de estas reglas, **pregunta a Angel antes de actuar**.
 
