@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import EstadoVacio from '../componentes/EstadoVacio';
+import HojaModal from '../componentes/HojaModal';
 import PaginacionTabla from '../componentes/PaginacionTabla';
 import TarjetaSeccion from '../componentes/TarjetaSeccion';
 import { ErrorApi, consultarCuarentena } from '../servicios/api';
+import { formatearFechaHoraUtc, recortarId, textoVisible } from '../utilidades/formato';
 
 const LIMITE_PAGINA = 50;
 
@@ -23,75 +26,43 @@ const MAPA_MOTIVOS = Object.fromEntries(
 );
 
 function ModalRegistroCuarentena({ elemento, alCerrar }) {
-  useEffect(() => {
-    function manejarTecla(evento) {
-      if (evento.key === 'Escape') {
-        alCerrar();
-      }
-    }
-    window.addEventListener('keydown', manejarTecla);
-    return () => window.removeEventListener('keydown', manejarTecla);
-  }, [alCerrar]);
-
   return (
-    <div
-      className="modal-fondo"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-detalle-cuarentena"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) alCerrar();
-      }}
+    <HojaModal
+      idTitulo="titulo-detalle-cuarentena"
+      antetitulo="Registro en cuarentena"
+      titulo={<span className="celda-id">{elemento.id_cuarentena}</span>}
+      alCerrar={alCerrar}
+      lateral
     >
-      <div className="modal-tarjeta">
-        <header className="modal-tarjeta__encabezado">
-          <div>
-            <p className="tarjeta-acceso__marca">REGISTRO EN CUARENTENA</p>
-            <h2
-              id="titulo-detalle-cuarentena"
-              className="modal-tarjeta__titulo"
-            >
-              {elemento.id_cuarentena}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={alCerrar}
-          >
-            Cerrar
-          </button>
-        </header>
-
         <dl className="rejilla-detalle">
           <div className="campo-detalle">
             <dt>ID original</dt>
-            <dd className="celda-mono">{elemento.id_original || '—'}</dd>
+            <dd className="celda-id">{elemento.id_original || '—'}</dd>
           </div>
           <div className="campo-detalle">
             <dt>Tipo de registro</dt>
             <dd>{elemento.tipo_registro || '—'}</dd>
           </div>
           <div className="campo-detalle">
-            <dt>Detectado en (UTC)</dt>
-            <dd className="celda-mono">{elemento.detectado_en || '—'}</dd>
+            <dt>Detectado</dt>
+            <dd>{formatearFechaHoraUtc(elemento.detectado_en)}</dd>
           </div>
           <div className="campo-detalle">
-            <dt>Fuente / Estado</dt>
+            <dt>Fuente y estado de revisión</dt>
             <dd>
-              {elemento.fuente || '—'} · {elemento.estado_revision || '—'}
+              {elemento.fuente || '—'}, {elemento.estado_revision || '—'}
             </dd>
           </div>
           <div className="campo-detalle campo-detalle--amplio">
             <dt>ID de lote</dt>
-            <dd className="celda-mono">{elemento.id_lote || '—'}</dd>
+            <dd className="celda-id">{elemento.id_lote || '—'}</dd>
           </div>
           <div className="campo-detalle campo-detalle--amplio">
             <dt>Motivos de rechazo</dt>
             <dd className="grupo-motivos">
               {Array.isArray(elemento.motivos) && elemento.motivos.length > 0
                 ? elemento.motivos.map((m) => (
-                    <span key={m} className="insignia-motivo">
+                    <span key={m} className={`insignia-motivo motivo--${m}`}>
                       {MAPA_MOTIVOS[m] || m}
                     </span>
                   ))
@@ -102,15 +73,13 @@ function ModalRegistroCuarentena({ elemento, alCerrar }) {
 
         <div>
           <p className="etiqueta-bloque-json">
-            Documento original (mostrado tal cual llega de la API, sin campos
-            geográficos):
+            Registro original, tal como se recibió y sin datos de ubicación.
           </p>
-          <pre className="bloque-json">
+          <pre className="bloque-json" tabIndex={0}>
             {JSON.stringify(elemento.registro ?? {}, null, 2)}
           </pre>
         </div>
-      </div>
-    </div>
+    </HojaModal>
   );
 }
 
@@ -123,6 +92,7 @@ export default function VistaCuarentena() {
 
   const [intento, setIntento] = useState(0);
   const [seleccionado, setSeleccionado] = useState(null);
+  const [filaElegida, setFilaElegida] = useState(null);
   const [estado, setEstado] = useState({
     cargando: true,
     total: 0,
@@ -199,26 +169,33 @@ export default function VistaCuarentena() {
   }
 
   return (
-    <div className="vista-historica">
-      <section
-        className="zona-filtros"
-        aria-label="Filtro de registros en cuarentena"
-      >
+    <div className="pagina">
+      <header className="encabezado-pagina">
+        <h1 className="titulo-pagina">
+          Cuarentena. <span className="titulo-pagina__complemento">Registros que la validación rechazó.</span>
+        </h1>
+        <p className="nota">
+          {estado.cargando
+            ? 'Consultando la cuarentena…'
+            : estado.error
+              ? 'No se pudo consultar la cuarentena.'
+              : `${estado.total.toLocaleString('es-MX')} ${estado.total === 1 ? 'registro' : 'registros'}${motivo ? ' con este motivo' : ' en total'}, del más reciente al más antiguo.`}
+        </p>
+      </header>
+
+      <section className="tarjeta tarjeta--completo zona-filtros" aria-labelledby="titulo-filtro-motivo">
         <div className="zona-filtros__encabezado">
           <div>
-            <h2 className="zona-filtros__titulo">Filtro por motivo</h2>
-            <p className="zona-filtros__descripcion">
-              Consulta de solo lectura ordenada del registro más reciente al más
-              antiguo.
-            </p>
+            <h2 id="titulo-filtro-motivo" className="tarjeta__titulo">Filtro</h2>
+            <p className="tarjeta__subtitulo">Muestra solo los registros con un motivo de rechazo.</p>
           </div>
           {motivo && (
             <button
               type="button"
-              className="boton-secundario"
+              className="boton boton--secundario"
               onClick={() => cambiarMotivo('')}
             >
-              Limpiar filtro
+              Quitar filtro
             </button>
           )}
         </div>
@@ -247,28 +224,28 @@ export default function VistaCuarentena() {
 
       <TarjetaSeccion
         id="seccion-cuarentena"
-        titulo="Cuarentena"
-        descripcion="Registros rechazados por el proceso de validación en Couchbase Capella. El documento original se presenta sin campos geográficos."
-        rutaApi="GET /api/cuarentena"
-        insigniaPrivacidad="Sin geografía"
-        anchoCompleto
+        titulo="Registros"
+        subtitulo="El documento original se muestra sin datos de ubicación."
+        insignias={['Sin ubicación']}
+        nivelTitulo={2}
+        ancho="completo"
       >
         {estado.cargando ? (
-          <div className="estado-grafica" role="status" aria-live="polite">
-            <span className="indicador-carga" aria-hidden="true" />
-            <p className="estado-grafica__texto">
-              Cargando registros en cuarentena…
-            </p>
+          <div className="esqueleto esqueleto--tabla" role="status" aria-live="polite">
+            <span className="sr-only">Cargando registros</span>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <span key={n} className="esqueleto-fila" aria-hidden="true" />
+            ))}
           </div>
         ) : estado.error ? (
           <div className="estado-grafica estado-grafica--error" role="alert">
-            <p className="estado-grafica__titulo">
-              No se pudo cargar la cuarentena
+            <p className="estado-grafica__titulo">No se pudo cargar la cuarentena.</p>
+            <p className="estado-grafica__texto">
+              {textoVisible(estado.error)}. Revisa la conexión y elige Reintentar.
             </p>
-            <p className="estado-grafica__texto">{estado.error}</p>
             <button
               type="button"
-              className="boton-secundario"
+              className="boton boton--secundario"
               onClick={() => setIntento((n) => n + 1)}
             >
               Reintentar
@@ -276,11 +253,23 @@ export default function VistaCuarentena() {
           </div>
         ) : estado.datos.length === 0 ? (
           <>
-            <div className="estado-grafica" role="status">
-              <p className="estado-grafica__texto">
-                No se encontraron registros en cuarentena para este criterio.
-              </p>
-            </div>
+            <EstadoVacio
+              titulo={motivo ? 'No hay registros con este motivo.' : 'No hay registros en esta página.'}
+              texto={motivo ? 'Prueba con otro motivo o quita el filtro.' : 'Vuelve a la primera página.'}
+              accion={
+                motivo ? (
+                  <button type="button" className="boton boton--secundario" onClick={() => cambiarMotivo('')}>
+                    Quitar filtro
+                  </button>
+                ) : (
+                  estado.total > 0 && (
+                    <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
+                      Ir a la primera página
+                    </button>
+                  )
+                )
+              }
+            />
             {estado.total > 0 && (
               <PaginacionTabla
                 pagina={pagina}
@@ -296,40 +285,47 @@ export default function VistaCuarentena() {
               <table className="tabla-datos">
                 <thead>
                   <tr>
-                    <th>ID cuarentena</th>
-                    <th>ID original</th>
-                    <th>Motivos</th>
-                    <th>Detectado en (UTC)</th>
-                    <th>Fuente</th>
-                    <th>Estado</th>
-                    <th>Acción</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">ID original</th>
+                    <th scope="col">Motivos</th>
+                    <th scope="col">Detectado</th>
+                    <th scope="col">Fuente</th>
+                    <th scope="col">Revisión</th>
+                    <th scope="col"><span className="sr-only">Registro</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {estado.datos.map((fila) => (
-                    <tr key={fila.id_cuarentena}>
-                      <td className="celda-mono">{fila.id_cuarentena}</td>
-                      <td className="celda-mono">{fila.id_original || '—'}</td>
+                    <tr
+                      key={fila.id_cuarentena}
+                      className={filaElegida === fila.id_cuarentena ? 'fila--elegida' : undefined}
+                    >
+                      <td className="celda-id" title={fila.id_cuarentena}>{recortarId(fila.id_cuarentena)}</td>
+                      <td className="celda-id" title={fila.id_original || undefined}>{fila.id_original ? recortarId(fila.id_original) : '—'}</td>
                       <td>
                         <div className="grupo-motivos">
                           {Array.isArray(fila.motivos) &&
                           fila.motivos.length > 0
                             ? fila.motivos.map((m) => (
-                                <span key={m} className="insignia-motivo">
+                                <span key={m} className={`insignia-motivo motivo--${m}`}>
                                   {MAPA_MOTIVOS[m] || m}
                                 </span>
                               ))
                             : '—'}
                         </div>
                       </td>
-                      <td className="celda-mono">{fila.detectado_en || '—'}</td>
+                      <td className="celda-fecha">{formatearFechaHoraUtc(fila.detectado_en)}</td>
                       <td>{fila.fuente || '—'}</td>
                       <td>{fila.estado_revision || '—'}</td>
                       <td>
                         <button
                           type="button"
-                          className="boton-enlace-tabla"
-                          onClick={() => setSeleccionado(fila)}
+                          className="boton-enlace"
+                          onClick={() => {
+                            setFilaElegida(fila.id_cuarentena);
+                            setSeleccionado(fila);
+                          }}
+                          aria-label={`Ver registro ${fila.id_cuarentena}`}
                         >
                           Ver registro
                         </button>

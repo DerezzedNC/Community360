@@ -66,7 +66,7 @@ export function ProveedorCatalogos({ children }) {
         const mensaje =
           err instanceof ErrorApi && typeof err.datos?.detail === 'string'
             ? err.datos.detail
-            : 'No se pudieron cargar los catálogos desde la API.';
+            : 'No se pudieron cargar los catálogos.';
 
         setEstado({
           cargando: false,
@@ -152,6 +152,19 @@ export function ProveedorCatalogos({ children }) {
     [estado.datos, opcionesActivasPorCatalogo]
   );
 
+  // Posición del código en su catálogo (orden por código, incluye inactivos): fija el color
+  // de cada categoría en todas las gráficas (docs/DISENO.md §8.4). -1 si no existe.
+  const obtenerIndiceCodigo = useCallback(
+    (nombreCatalogo, codigo) => {
+      const mapa = mapasPorCodigo[nombreCatalogo];
+      if (!mapa || !mapa.has(codigo)) {
+        return -1;
+      }
+      return Array.from(mapa.keys()).indexOf(codigo);
+    },
+    [mapasPorCodigo]
+  );
+
   const valorContexto = useMemo(
     () => ({
       catalogosCargados: Boolean(estado.datos),
@@ -160,8 +173,10 @@ export function ProveedorCatalogos({ children }) {
       reintentarCatalogos,
       obtenerNombreLegible,
       obtenerOpcionesFiltro,
+      obtenerIndiceCodigo,
     }),
     [
+      obtenerIndiceCodigo,
       estado.cargando,
       estado.datos,
       estado.error,

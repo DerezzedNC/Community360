@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import Avatar from '../componentes/Avatar';
+import EstadoVacio from '../componentes/EstadoVacio';
+import HojaModal from '../componentes/HojaModal';
 import PaginacionTabla from '../componentes/PaginacionTabla';
 import SelectorCatalogo from '../componentes/SelectorCatalogo';
 import TarjetaSeccion from '../componentes/TarjetaSeccion';
@@ -9,6 +12,7 @@ import {
   consultarDetalleUsuario,
   consultarUsuarios,
 } from '../servicios/api';
+import { formatearFecha, recortarId, textoVisible } from '../utilidades/formato';
 
 const LIMITE_PAGINA = 50;
 const CLAVES_FILTROS = ['estatus', 'plataforma', 'especie', 'interes'];
@@ -49,16 +53,6 @@ function ModalDetalleUsuario({
   });
 
   useEffect(() => {
-    function manejarTecla(evento) {
-      if (evento.key === 'Escape') {
-        alCerrar();
-      }
-    }
-    window.addEventListener('keydown', manejarTecla);
-    return () => window.removeEventListener('keydown', manejarTecla);
-  }, [alCerrar]);
-
-  useEffect(() => {
     const controlador = new AbortController();
     setEstado({ cargando: true, usuario: null, error: '' });
 
@@ -93,70 +87,59 @@ function ModalDetalleUsuario({
   const u = estado.usuario;
 
   return (
-    <div
-      className="modal-fondo"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-detalle-usuario"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) alCerrar();
-      }}
+    <HojaModal
+      idTitulo="titulo-detalle-usuario"
+      antetitulo="Detalle de usuario"
+      titulo={u?.alias || idUsuario}
+      alCerrar={alCerrar}
+      lateral
     >
-      <div className="modal-tarjeta">
-        <header className="modal-tarjeta__encabezado">
-          <div>
-            <p className="tarjeta-acceso__marca">FICHA DE CONSULTA</p>
-            <h2 id="titulo-detalle-usuario" className="modal-tarjeta__titulo">
-              Usuario {idUsuario}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={alCerrar}
-          >
-            Cerrar
-          </button>
-        </header>
-
         {estado.cargando ? (
-          <div className="estado-grafica" role="status" aria-live="polite">
-            <span className="indicador-carga" aria-hidden="true" />
-            <p className="estado-grafica__texto">Consultando usuario…</p>
+          <div className="esqueleto esqueleto--detalle" role="status" aria-live="polite">
+            <span className="sr-only">Cargando usuario</span>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <span key={n} className="esqueleto-linea" aria-hidden="true" />
+            ))}
           </div>
         ) : estado.error ? (
           <div className="estado-grafica estado-grafica--error" role="alert">
-            <p className="estado-grafica__titulo">{estado.error}</p>
+            <p className="estado-grafica__titulo">
+              {estado.error === 'Usuario no encontrado'
+                ? 'Este usuario ya no está en el padrón.'
+                : 'No se pudo cargar el detalle.'}
+            </p>
             {estado.error !== 'Usuario no encontrado' && (
-              <button
-                type="button"
-                className="boton-secundario"
-                onClick={() => setIntento((n) => n + 1)}
-              >
-                Reintentar
-              </button>
+              <>
+                <p className="estado-grafica__texto">
+                  {textoVisible(estado.error)}. Revisa la conexión y elige Reintentar.
+                </p>
+                <button
+                  type="button"
+                  className="boton boton--secundario"
+                  onClick={() => setIntento((n) => n + 1)}
+                >
+                  Reintentar
+                </button>
+              </>
             )}
           </div>
         ) : u ? (
           <div className="detalle-usuario">
+            <div className="detalle-usuario__cabecera">
+              <Avatar alias={u.alias} />
+              <div>
+                <p className="texto-fuerte">{u.alias}</p>
+                <span className={`estatus estatus--${u.estatus}`}>
+                  {ETIQUETAS_ESTATUS[u.estatus] || u.estatus}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="detalle-usuario__seccion">Perfil</h3>
             <dl className="rejilla-detalle">
               <div className="campo-detalle">
                 <dt>ID de usuario</dt>
-                <dd>{u.id_usuario}</dd>
-              </div>
-              <div className="campo-detalle">
-                <dt>Alias</dt>
-                <dd>{u.alias}</dd>
-              </div>
-              <div className="campo-detalle">
-                <dt>Estatus</dt>
-                <dd>
-                  <span
-                    className={`insignia-estatus insignia-estatus--${u.estatus}`}
-                  >
-                    {ETIQUETAS_ESTATUS[u.estatus] || u.estatus}
-                  </span>
-                </dd>
+                <dd className="celda-id">{u.id_usuario}</dd>
               </div>
               <div className="campo-detalle">
                 <dt>Plataforma</dt>
@@ -180,11 +163,19 @@ function ModalDetalleUsuario({
               </div>
               <div className="campo-detalle">
                 <dt>Fecha de ingreso</dt>
-                <dd>{u.fecha_ingreso || '—'}</dd>
+                <dd>{formatearFecha(u.fecha_ingreso)}</dd>
               </div>
               <div className="campo-detalle">
+                <dt>Consentimiento de datos</dt>
+                <dd>{u.consentimiento_datos ? 'Otorgado' : 'No otorgado'}</dd>
+              </div>
+            </dl>
+
+            <h3 className="detalle-usuario__seccion">Actividad</h3>
+            <dl className="rejilla-detalle">
+              <div className="campo-detalle">
                 <dt>Última actividad</dt>
-                <dd>{u.ultima_actividad || '—'}</dd>
+                <dd>{formatearFecha(u.ultima_actividad)}</dd>
               </div>
               <div className="campo-detalle">
                 <dt>Mensajes (30 días)</dt>
@@ -210,32 +201,31 @@ function ModalDetalleUsuario({
                 <dt>Comportamiento atípico</dt>
                 <dd>{u.es_atipico ? 'Sí' : 'No'}</dd>
               </div>
-              <div className="campo-detalle">
-                <dt>Consentimiento de datos</dt>
-                <dd>{u.consentimiento_datos ? 'Otorgado' : 'No otorgado'}</dd>
-              </div>
-              <div className="campo-detalle campo-detalle--amplio">
-                <dt>Ubicación registrada</dt>
-                <dd>
-                  {u.ubicacion ? (
-                    <span>
-                      {formatearUbicacionCorta(u.ubicacion)}
-                      {u.ubicacion.zona_horaria
-                        ? ` · Zona horaria: ${u.ubicacion.zona_horaria}`
-                        : ''}
-                    </span>
-                  ) : (
-                    <span className="texto-sin-consentimiento">
-                      Sin consentimiento (ubicación omitida por privacidad)
-                    </span>
-                  )}
-                </dd>
-              </div>
             </dl>
+
+            {/* Privacidad: sin consentimiento no hay ubicación (la API ya la manda en null) */}
+            <h3 className="detalle-usuario__seccion">{u.ubicacion ? 'Ubicación' : 'Sin consentimiento'}</h3>
+            {u.ubicacion ? (
+              <dl className="rejilla-detalle">
+                <div className="campo-detalle campo-detalle--amplio">
+                  <dt>Ciudad, estado y país</dt>
+                  <dd>{formatearUbicacionCorta(u.ubicacion)}</dd>
+                </div>
+                {u.ubicacion.zona_horaria && (
+                  <div className="campo-detalle campo-detalle--amplio">
+                    <dt>Zona horaria</dt>
+                    <dd>{u.ubicacion.zona_horaria}</dd>
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p className="texto-sin-consentimiento">
+                El usuario no dio su consentimiento: su ubicación no se muestra.
+              </p>
+            )}
           </div>
         ) : null}
-      </div>
-    </div>
+    </HojaModal>
   );
 }
 
@@ -259,6 +249,7 @@ export default function VistaUsuarios() {
 
   const [intentoTabla, setIntentoTabla] = useState(0);
   const [usuarioDetalleId, setUsuarioDetalleId] = useState(null);
+  const [filaElegida, setFilaElegida] = useState(null);
   const [estadoTabla, setEstadoTabla] = useState({
     cargando: true,
     total: 0,
@@ -348,26 +339,35 @@ export default function VistaUsuarios() {
   }
 
   return (
-    <div className="vista-historica">
-      <section
-        className="zona-filtros"
-        aria-label="Filtros de consulta del padrón de usuarios"
-      >
+    <div className="pagina">
+      <header className="encabezado-pagina">
+        <h1 className="titulo-pagina">
+          Usuarios. <span className="titulo-pagina__complemento">El padrón, de solo lectura.</span>
+        </h1>
+        <p className="nota">
+          {estadoTabla.cargando
+            ? 'Consultando el padrón…'
+            : estadoTabla.error
+              ? 'No se pudo consultar el padrón.'
+              : `${estadoTabla.total.toLocaleString('es-MX')} ${estadoTabla.total === 1 ? 'usuario' : 'usuarios'} ${hayFiltrosActivos ? 'con estos filtros' : 'en total'}.`}
+        </p>
+      </header>
+
+      <section className="tarjeta tarjeta--completo zona-filtros" aria-labelledby="titulo-filtros">
         <div className="zona-filtros__encabezado">
           <div>
-            <h2 className="zona-filtros__titulo">Filtros de consulta</h2>
-            <p className="zona-filtros__descripcion">
-              Filtros combinables sobre el padrón histórico. Al cambiar un
-              filtro se regresa a la página 1.
+            <h2 id="titulo-filtros" className="tarjeta__titulo">Filtros</h2>
+            <p className="tarjeta__subtitulo">
+              Se combinan entre sí. Al cambiar uno, la tabla vuelve a la página 1.
             </p>
           </div>
           {hayFiltrosActivos && (
             <button
               type="button"
-              className="boton-secundario"
+              className="boton boton--secundario"
               onClick={limpiarFiltros}
             >
-              Limpiar filtros
+              Quitar filtros
             </button>
           )}
         </div>
@@ -428,7 +428,7 @@ export default function VistaUsuarios() {
         {cargandoCatalogos && (
           <div className="zona-filtros__estado" role="status" aria-live="polite">
             <span className="indicador-carga" aria-hidden="true" />
-            <span>Cargando catálogos para plataforma, especie e interés…</span>
+            <span>Cargando las opciones de plataforma, especie e interés…</span>
           </div>
         )}
 
@@ -439,13 +439,15 @@ export default function VistaUsuarios() {
           >
             <div>
               <p className="zona-filtros__error-titulo">
-                No se pudieron cargar los catálogos de filtrado
+                No se pudieron cargar las opciones de plataforma, especie e interés.
               </p>
-              <p className="zona-filtros__error-detalle">{errorCatalogos}</p>
+              <p className="zona-filtros__error-detalle">
+                {textoVisible(errorCatalogos)}. Revisa la conexión y elige Reintentar.
+              </p>
             </div>
             <button
               type="button"
-              className="boton-secundario"
+              className="boton boton--secundario"
               onClick={reintentarCatalogos}
             >
               Reintentar
@@ -455,24 +457,24 @@ export default function VistaUsuarios() {
 
         {hayFiltrosActivos && (
           <div className="resumen-filtros" aria-live="polite">
-            <span className="resumen-filtros__etiqueta">Filtros activos:</span>
+            <span className="resumen-filtros__etiqueta">Filtros aplicados:</span>
             {estatus && (
-              <span className="insignia-filtro">
+              <span className="insignia">
                 Estatus: {ETIQUETAS_ESTATUS[estatus] || estatus}
               </span>
             )}
             {plataforma && (
-              <span className="insignia-filtro">
+              <span className="insignia">
                 Plataforma: {obtenerNombreLegible('plataforma', plataforma)}
               </span>
             )}
             {especie && (
-              <span className="insignia-filtro">
+              <span className="insignia">
                 Especie: {obtenerNombreLegible('especie', especie)}
               </span>
             )}
             {interes && (
-              <span className="insignia-filtro">
+              <span className="insignia">
                 Interés: {obtenerNombreLegible('interes', interes)}
               </span>
             )}
@@ -482,28 +484,28 @@ export default function VistaUsuarios() {
 
       <TarjetaSeccion
         id="seccion-usuarios"
-        titulo="Padrón de usuarios"
-        descripcion="Consulta de solo lectura del padrón paginado en TiDB Cloud. Los usuarios sin consentimiento de datos nunca incluyen ubicación."
-        rutaApi="GET /api/usuarios"
-        insigniaPrivacidad="Ubicación según consentimiento"
-        anchoCompleto
+        titulo="Padrón"
+        subtitulo="La ubicación solo aparece si el usuario dio su consentimiento, y nunca con coordenadas."
+        insignias={['Ubicación solo con consentimiento']}
+        nivelTitulo={2}
+        ancho="completo"
       >
         {estadoTabla.cargando ? (
-          <div className="estado-grafica" role="status" aria-live="polite">
-            <span className="indicador-carga" aria-hidden="true" />
-            <p className="estado-grafica__texto">
-              Cargando padrón de usuarios…
-            </p>
+          <div className="esqueleto esqueleto--tabla" role="status" aria-live="polite">
+            <span className="sr-only">Cargando usuarios</span>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <span key={n} className="esqueleto-fila" aria-hidden="true" />
+            ))}
           </div>
         ) : estadoTabla.error ? (
           <div className="estado-grafica estado-grafica--error" role="alert">
-            <p className="estado-grafica__titulo">
-              No se pudo cargar el padrón
+            <p className="estado-grafica__titulo">No se pudo cargar el padrón.</p>
+            <p className="estado-grafica__texto">
+              {textoVisible(estadoTabla.error)}. Revisa la conexión y elige Reintentar.
             </p>
-            <p className="estado-grafica__texto">{estadoTabla.error}</p>
             <button
               type="button"
-              className="boton-secundario"
+              className="boton boton--secundario"
               onClick={() => setIntentoTabla((n) => n + 1)}
             >
               Reintentar
@@ -511,11 +513,23 @@ export default function VistaUsuarios() {
           </div>
         ) : estadoTabla.datos.length === 0 ? (
           <>
-            <div className="estado-grafica" role="status">
-              <p className="estado-grafica__texto">
-                No se encontraron usuarios con los criterios actuales.
-              </p>
-            </div>
+            <EstadoVacio
+              titulo={hayFiltrosActivos ? 'No hay usuarios con estos filtros.' : 'No hay usuarios en esta página.'}
+              texto={hayFiltrosActivos ? 'Prueba quitando alguno.' : 'Vuelve a la primera página.'}
+              accion={
+                hayFiltrosActivos ? (
+                  <button type="button" className="boton boton--secundario" onClick={limpiarFiltros}>
+                    Quitar filtros
+                  </button>
+                ) : (
+                  estadoTabla.total > 0 && (
+                    <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
+                      Ir a la primera página
+                    </button>
+                  )
+                )
+              }
+            />
             {estadoTabla.total > 0 && (
               <PaginacionTabla
                 pagina={pagina}
@@ -531,35 +545,41 @@ export default function VistaUsuarios() {
               <table className="tabla-datos">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Alias</th>
-                    <th>Estatus</th>
-                    <th>Plataforma</th>
-                    <th>Especie</th>
-                    <th>Interés</th>
-                    <th>Edad</th>
-                    <th>Sentimiento</th>
-                    <th>Últ. actividad</th>
-                    <th>Ubicación</th>
-                    <th>Acción</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Alias</th>
+                    <th scope="col">Estatus</th>
+                    <th scope="col">Plataforma</th>
+                    <th scope="col">Especie</th>
+                    <th scope="col">Interés</th>
+                    <th scope="col">Edad</th>
+                    <th scope="col" className="celda-numero">Sentimiento</th>
+                    <th scope="col">Última actividad</th>
+                    <th scope="col">Ubicación</th>
+                    <th scope="col"><span className="sr-only">Detalle</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {estadoTabla.datos.map((u) => {
                     const textoUbicacion = formatearUbicacionCorta(u.ubicacion);
                     return (
-                      <tr key={u.id_usuario}>
-                        <td className="celda-mono">{u.id_usuario}</td>
+                      <tr
+                        key={u.id_usuario}
+                        className={filaElegida === u.id_usuario ? 'fila--elegida' : undefined}
+                      >
+                        <td className="celda-id" title={u.id_usuario}>{recortarId(u.id_usuario)}</td>
                         <td>
-                          <span className="texto-fuerte">{u.alias}</span>
-                          {u.es_artista && (
-                            <span className="insignia-sutil">Artista</span>
-                          )}
+                          <span className="celda-alias">
+                            <Avatar alias={u.alias} />
+                            <span className="celda-alias__texto">
+                              <span className="texto-fuerte">{u.alias}</span>
+                              {u.es_artista && (
+                                <span className="insignia-sutil">Artista</span>
+                              )}
+                            </span>
+                          </span>
                         </td>
                         <td>
-                          <span
-                            className={`insignia-estatus insignia-estatus--${u.estatus}`}
-                          >
+                          <span className={`estatus estatus--${u.estatus}`}>
                             {ETIQUETAS_ESTATUS[u.estatus] || u.estatus}
                           </span>
                         </td>
@@ -572,18 +592,23 @@ export default function VistaUsuarios() {
                         <td>
                           {obtenerNombreLegible('interes', u.cod_interes)}
                         </td>
-                        <td>
+                        <td className="celda-corta">
                           {obtenerNombreLegible('rango_edad', u.cod_rango_edad)}
                         </td>
                         <td className="celda-numero">
                           {formatearSentimiento(u.sentimiento_promedio)}
                         </td>
-                        <td className="celda-mono">
-                          {u.ultima_actividad || '—'}
+                        <td className="celda-fecha">
+                          {formatearFecha(u.ultima_actividad)}
                         </td>
                         <td>
                           {textoUbicacion ? (
-                            <span>{textoUbicacion}</span>
+                            <span className="ubicacion-dos-lineas">
+                              <span>{u.ubicacion.ciudad}</span>
+                              <span className="ubicacion-dos-lineas__resto">
+                                {[u.ubicacion.estado, u.ubicacion.pais].filter(Boolean).join(', ')}
+                              </span>
+                            </span>
                           ) : (
                             <span className="texto-sin-consentimiento">
                               Sin consentimiento
@@ -593,8 +618,12 @@ export default function VistaUsuarios() {
                         <td>
                           <button
                             type="button"
-                            className="boton-enlace-tabla"
-                            onClick={() => setUsuarioDetalleId(u.id_usuario)}
+                            className="boton-enlace"
+                            onClick={() => {
+                              setFilaElegida(u.id_usuario);
+                              setUsuarioDetalleId(u.id_usuario);
+                            }}
+                            aria-label={`Ver detalle de ${u.alias || u.id_usuario}`}
                           >
                             Ver detalle
                           </button>

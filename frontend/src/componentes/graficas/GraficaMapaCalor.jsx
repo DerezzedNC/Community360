@@ -1,138 +1,154 @@
-import { useMemo } from 'react';
-import LienzoEcharts, { escaparHtml } from './LienzoEcharts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import LienzoEcharts from './LienzoEcharts';
+import { escaparHtml, tooltipBase, useTemaGraficas } from './temaGraficas';
 
-// Componente reutilizable de mapa de calor.
-// No asume qué dimensión va en cada eje: ejes y celdas llegan íntegramente desde la API por props.
-// Maneja los estados: cargando, sin datos y error.
+// Mapa de calor reutilizable. Ejes y celdas llegan íntegros por props desde la API.
 export default function GraficaMapaCalor({
   etiquetasHorizontal,
   etiquetasVertical,
   tituloHorizontal = '',
-  tituloVertical = '',
   nombreMetrica = 'Valor',
   celdas,
   altura = '340px',
   cargando = false,
   error = '',
   alReintentar,
-  etiquetaAria = 'Mapa de calor de actividad',
+  etiquetaAria = 'Mapa de calor',
+  tabla = null,
+  gama = null, // colores de menos a más; por omisión, la gama azul
 }) {
-  const tieneHorizontal =
-    Array.isArray(etiquetasHorizontal) && etiquetasHorizontal.length > 0;
-  const tieneVertical =
-    Array.isArray(etiquetasVertical) && etiquetasVertical.length > 0;
+  const tema = useTemaGraficas();
+  const anteriorRef = useRef(null);
+  const [resaltar, setResaltar] = useState(null);
+  const tieneHorizontal = Array.isArray(etiquetasHorizontal) && etiquetasHorizontal.length > 0;
+  const tieneVertical = Array.isArray(etiquetasVertical) && etiquetasVertical.length > 0;
   const tieneCeldas = Array.isArray(celdas) && celdas.length > 0;
   const sinDatos = !tieneHorizontal || !tieneVertical || !tieneCeldas;
+
+  // Celdas cuyo valor cambió respecto a los datos anteriores (se iluminan 1.5 s)
+  useEffect(() => {
+    if (sinDatos) return;
+    const clave = (celda) => `${etiquetasHorizontal[celda[0]]}|${etiquetasVertical[celda[1]]}`;
+    const actual = new Map(celdas.map((celda) => [clave(celda), Number(celda[2])]));
+    const anterior = anteriorRef.current;
+    anteriorRef.current = actual;
+    if (!anterior) return;
+    const cambios = [];
+    celdas.forEach((celda, dataIndex) => {
+      const k = clave(celda);
+      if (anterior.has(k) && anterior.get(k) !== Number(celda[2])) cambios.push({ seriesIndex: 0, dataIndex });
+    });
+    if (cambios.length > 0) setResaltar(cambios);
+  }, [celdas, etiquetasHorizontal, etiquetasVertical, sinDatos]);
 
   const opcion = useMemo(() => {
     if (sinDatos) {
       return null;
     }
 
-    let minimo = Infinity;
-    let maximo = -Infinity;
-
+    let maximo = 0;
     for (const celda of celdas) {
       const valor = Array.isArray(celda) ? Number(celda[2]) : NaN;
-      if (!Number.isNaN(valor)) {
-        if (valor < minimo) minimo = valor;
-        if (valor > maximo) maximo = valor;
-      }
+      if (Number.isFinite(valor) && valor > maximo) maximo = valor;
     }
+    // La celda máxima (la primera si empatan) lleva contorno y su valor a la vista
+    const indiceMaximo = maximo > 0 ? celdas.findIndex((celda) => Number(celda[2]) === maximo) : -1;
+    const datosSerie = celdas.map((celda, i) =>
+      i === indiceMaximo
+        ? {
+            value: celda,
+            itemStyle: { borderColor: tema.texto, borderWidth: 2 },
+            // En una pastilla de superficie: legible sobre cualquier color de la gama
+            label: {
+              show: true,
+              color: tema.texto,
+              backgroundColor: tema.superficie,
+              padding: [2, 6],
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 12,
+              formatter: () => maximo.toLocaleString('es-MX'),
+            },
+          }
+        : celda
+    );
 
-    if (!Number.isFinite(minimo)) minimo = 0;
-    if (!Number.isFinite(maximo)) maximo = minimo;
-    const maximoVisual = Math.max(maximo, minimo + 1);
+    const etiquetaEje = { color: tema.texto2, fontSize: 12, fontFamily: tema.fuente };
 
     return {
-      animationDurationUpdate: 320,
+      animation: tema.animacion,
+      animationDurationUpdate: tema.duracion,
+      textStyle: { fontFamily: tema.fuente },
       tooltip: {
+        ...tooltipBase(tema),
         position: 'top',
-        confine: true,
-        backgroundColor: 'rgba(15, 23, 42, 0.94)',
-        borderWidth: 0,
-        textStyle: { color: '#f8fafc', fontSize: 12 },
         formatter: (param) => {
           const val = Array.isArray(param.value) ? param.value : [];
           const etqX = escaparHtml(etiquetasHorizontal[val[0]] ?? '');
           const etqY = escaparHtml(etiquetasVertical[val[1]] ?? '');
-          const cant =
-            val[2] !== undefined ? Number(val[2]).toLocaleString('es-MX') : '0';
-          return `<strong>${etqY} · ${etqX}</strong><br/>${escaparHtml(nombreMetrica)}: <strong>${cant}</strong>`;
+          const cant = val[2] !== undefined ? Number(val[2]).toLocaleString('es-MX') : '0';
+          return `<strong>${etqY}, ${etqX}</strong><br/>${escaparHtml(nombreMetrica)}: <strong>${cant}</strong>`;
         },
       },
-      grid: {
-        top: tituloVertical ? 26 : 16,
-        right: 20,
-        bottom: 64,
-        left: 12,
-        containLabel: true,
-      },
+      grid: { top: 4, right: 4, bottom: 72, left: 0, containLabel: true },
       xAxis: {
         type: 'category',
         name: tituloHorizontal,
         nameLocation: 'middle',
-        nameGap: 28,
-        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 600 },
+        nameGap: 30,
+        nameTextStyle: etiquetaEje,
         data: etiquetasHorizontal,
-        splitArea: { show: true },
-        axisLine: { lineStyle: { color: '#cbd5e1' } },
-        axisLabel: {
-          color: '#475569',
-          fontSize: 11,
-          hideOverlap: true,
-        },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { ...etiquetaEje, hideOverlap: true },
       },
       yAxis: {
         type: 'category',
-        name: tituloVertical,
-        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 600 },
         data: etiquetasVertical,
-        splitArea: { show: true },
-        axisLine: { lineStyle: { color: '#cbd5e1' } },
-        axisLabel: { color: '#334155', fontSize: 11 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: etiquetaEje,
       },
       visualMap: {
-        min: minimo,
-        max: maximoVisual,
-        calculable: true,
+        // Las celdas en 0 quedan fuera de la gama y se pintan como celda vacía
+        min: 1,
+        max: Math.max(maximo, 2),
+        calculable: false,
         orient: 'horizontal',
-        left: 'center',
+        left: 0,
         bottom: 0,
-        itemWidth: 14,
-        itemHeight: 130,
-        inRange: {
-          color: ['#f1f5f9', '#bfdbfe', '#3b82f6', '#1e3a8a'],
-        },
-        textStyle: { color: '#475569', fontSize: 11 },
+        itemWidth: 12,
+        itemHeight: 160,
+        precision: 0,
+        text: ['Más', 'Menos'],
+        inRange: { color: gama || tema.gamaCalor },
+        outOfRange: { color: tema.relleno },
+        textStyle: etiquetaEje,
       },
       series: [
         {
           name: nombreMetrica,
           type: 'heatmap',
-          data: celdas,
+          data: datosSerie,
           itemStyle: {
-            borderColor: '#ffffff',
-            borderWidth: 1,
+            borderColor: tema.superficie, // separador de 2 px del color de la superficie
+            borderWidth: 2,
+            borderRadius: 4,
           },
           emphasis: {
             itemStyle: {
-              shadowBlur: 6,
-              shadowColor: 'rgba(15, 23, 42, 0.28)',
+              borderColor: tema.texto,
+              borderWidth: 2,
+              shadowBlur: 14,
+              shadowColor: tema.oscuro ? 'rgba(255,255,255,0.5)' : 'rgba(0,113,227,0.5)',
             },
           },
         },
       ],
     };
-  }, [
-    celdas,
-    etiquetasHorizontal,
-    etiquetasVertical,
-    nombreMetrica,
-    sinDatos,
-    tituloHorizontal,
-    tituloVertical,
-  ]);
+  }, [celdas, etiquetasHorizontal, etiquetasVertical, gama, nombreMetrica, sinDatos, tema, tituloHorizontal]);
 
   return (
     <LienzoEcharts
@@ -143,6 +159,9 @@ export default function GraficaMapaCalor({
       sinDatos={sinDatos}
       alReintentar={alReintentar}
       etiquetaAria={etiquetaAria}
+      forma="calor"
+      tabla={tabla}
+      resaltar={resaltar}
     />
   );
 }

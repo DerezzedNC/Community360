@@ -1,30 +1,137 @@
-import { useEffect, useState } from 'react';
-import {
-  NavLink,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useOutletContext,
-} from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { ProveedorCatalogos } from '../contextos/ContextoCatalogos';
-import {
-  ErrorApi,
-  cerrarSesion,
-  consultarSalud,
-} from '../servicios/api';
+import { ProveedorEnVivo, estadoConexion, useEnVivo } from '../contextos/ContextoEnVivo';
+import { ErrorApi, cerrarSesion, consultarSalud } from '../servicios/api';
+import { formatearTiempoRelativo } from '../utilidades/formato';
+import { IconoActualizar, IconoCambio, IconoPalomita } from './Iconos';
 
-export default function LayoutDashboard() {
+const SECCIONES = [
+  { a: '/dashboard', texto: 'Métricas', fin: true },
+  { a: '/dashboard/usuarios', texto: 'Usuarios' },
+  { a: '/dashboard/cuarentena', texto: 'Cuarentena' },
+];
+
+const ETIQUETAS_CAMBIO = {
+  creada: 'Interacción creada',
+  editada: 'Interacción editada',
+  borrada: 'Interacción borrada',
+};
+const SEGUNDOS_AVISO = 8;
+const MAX_AVISOS = 3;
+
+function useAhora(cadaMs) {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setAhora(Date.now()), cadaMs);
+    return () => window.clearInterval(t);
+  }, [cadaMs]);
+  return ahora;
+}
+
+// Indicador de conexión y "Actualizar en vivo": el mismo en todas las vistas
+function ControlesEnVivo({ salud }) {
+  const { conexionWs, esperaReconexionSeg, solicitandoActualizacion, solicitarActualizacion, reconectarAhora } =
+    useEnVivo();
+  const estado = estadoConexion(conexionWs, esperaReconexionSeg);
+  const [confirmado, setConfirmado] = useState(false);
+  const esperabaRef = useRef(false);
+
+  // Palomita breve al recibir la respuesta del pedido manual
+  useEffect(() => {
+    if (solicitandoActualizacion) {
+      esperabaRef.current = true;
+      return undefined;
+    }
+    if (!esperabaRef.current) return undefined;
+    esperabaRef.current = false;
+    setConfirmado(true);
+    const t = window.setTimeout(() => setConfirmado(false), 1500);
+    return () => window.clearTimeout(t);
+  }, [solicitandoActualizacion]);
+
+  const detalleServicio =
+    salud?.estado === 'ok'
+      ? 'Los datos de usuarios e interacciones responden'
+      : salud?.estado === 'degradado'
+        ? `Sin respuesta de ${[!salud.tidb && 'los datos de usuarios', !salud.capella && 'las interacciones'].filter(Boolean).join(' ni de ')}`
+        : '';
+  const detalleEspera = conexionWs === 'reconectando' && esperaReconexionSeg > 0 ? `Nuevo intento en ${esperaReconexionSeg} s` : '';
+
+  return (
+    <>
+      <span
+        className={`indicador indicador--${estado.clase}`}
+        role="status"
+        aria-live="polite"
+        title={[detalleEspera, detalleServicio].filter(Boolean).join('. ') || undefined}
+      >
+        <span className="indicador__punto" aria-hidden="true" />
+        {estado.texto}
+      </span>
+      {conexionWs === 'conectado' ? (
+        <button
+          type="button"
+          className={`boton boton--primario boton--barra boton-actualizar ${solicitandoActualizacion ? 'boton-actualizar--esperando' : ''}`}
+          onClick={solicitarActualizacion}
+          disabled={solicitandoActualizacion}
+        >
+          {confirmado ? <IconoPalomita /> : <IconoActualizar />}
+          {solicitandoActualizacion ? 'Actualizando…' : confirmado ? 'Actualizado' : 'Actualizar en vivo'}
+        </button>
+      ) : (
+        <button type="button" className="boton boton--secundario boton--barra" onClick={reconectarAhora}>
+          Reconectar ahora
+        </button>
+      )}
+    </>
+  );
+}
+
+// Avisos flotantes apilados (máximo 3) con los eventos del WebSocket; se pueden cerrar
+function AvisosFlotantes() {
+  const { eventos } = useEnVivo();
+  const ahora = useAhora(1000);
+  const [cerrados, setCerrados] = useState(() => new Set());
+
+  const visibles = eventos
+    .filter((e) => !cerrados.has(e.recibidoEnMs) && ahora - e.recibidoEnMs < SEGUNDOS_AVISO * 1000)
+    .slice(0, MAX_AVISOS);
+
+  return (
+    <div className="avisos-flotantes" role="status" aria-live="polite">
+      {visibles.map((evento) => (
+        <div key={evento.recibidoEnMs} className={`aviso-flotante aviso-flotante--${evento.tipo}`}>
+          <IconoCambio tipo={evento.tipo} />
+          <span className="aviso-flotante__texto">
+            {ETIQUETAS_CAMBIO[evento.tipo] || `Interacción ${evento.tipo}`} ·{' '}
+            <span className="aviso-flotante__id">{evento.id_interaccion}</span> ·{' '}
+            {formatearTiempoRelativo(evento.recibidoEnMs, ahora)}
+          </span>
+          <button
+            type="button"
+            className="aviso-flotante__cerrar"
+            aria-label="Cerrar aviso"
+            onClick={() => setCerrados((previos) => new Set(previos).add(evento.recibidoEnMs))}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LayoutInterno() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const contexto = useOutletContext() || {};
   const usuario = contexto.usuario || null;
 
-  const [salud, setSalud] = useState(null);
+  const [salud, setSalud] = useState(undefined); // undefined: todavía sin respuesta
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [errorCierre, setErrorCierre] = useState('');
-
-  const enVistaMetricas = ubicacion.pathname === '/dashboard';
 
   useEffect(() => {
     const controlador = new AbortController();
@@ -44,6 +151,22 @@ export default function LayoutDashboard() {
     return () => controlador.abort();
   }, []);
 
+  // El menú móvil se cierra al cambiar de vista y con Esc
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [ubicacion.pathname]);
+
+  useEffect(() => {
+    if (!menuAbierto) {
+      return undefined;
+    }
+    function manejarTecla(evento) {
+      if (evento.key === 'Escape') setMenuAbierto(false);
+    }
+    document.addEventListener('keydown', manejarTecla);
+    return () => document.removeEventListener('keydown', manejarTecla);
+  }, [menuAbierto]);
+
   async function manejarCierreSesion() {
     if (cerrandoSesion) {
       return;
@@ -62,232 +185,95 @@ export default function LayoutDashboard() {
       }
 
       setErrorCierre(
-        'No se pudo cerrar la sesión porque el servidor no respondió. Intenta nuevamente.'
+        'No se pudo cerrar la sesión porque el servidor no respondió. Revisa la conexión y elige Cerrar sesión otra vez.'
       );
       setCerrandoSesion(false);
     }
   }
 
-  const estadoSalud = salud?.estado;
-  const claseEstadoSalud =
-    estadoSalud === 'ok'
-      ? 'estado-salud--ok'
-      : estadoSalud === 'degradado'
-        ? 'estado-salud--degradado'
-        : 'estado-salud--desconectado';
-
   return (
-    <ProveedorCatalogos>
-      <div className="estructura-app">
-        <aside
-          className={`barra-lateral ${menuAbierto ? 'barra-lateral--abierta' : ''}`}
-          aria-label="Navegación principal"
-        >
-          <div className="marca">
-            <span className="marca__sigla" aria-hidden="true">
-              C360
-            </span>
-            <div>
-              <p className="marca__titulo">COMMUNITY 360</p>
-              <p className="marca__subtitulo">Analítica híbrida en la nube</p>
-            </div>
-          </div>
+    <div className="app">
+      <a className="saltar-al-contenido" href="#contenido">
+        Saltar al contenido
+      </a>
 
-          <nav className="navegacion">
-            <p className="navegacion__etiqueta">Vistas históricas</p>
-            <NavLink
-              to="/dashboard"
-              end
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Métricas y gráficas
-            </NavLink>
+      <header className={`barra ${menuAbierto ? 'barra--abierta' : ''}`}>
+        <div className="barra__pildora">
+          <NavLink to="/dashboard" end className="barra__marca">
+            COMMUNITY 360
+          </NavLink>
 
-            {enVistaMetricas && (
-              <div className="navegacion__grupo-anclas">
-                <a
-                  href="#seccion-resumen"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Resumen de indicadores
-                </a>
-                <a
-                  href="#seccion-estatus"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Usuarios por estatus
-                </a>
-                <a
-                  href="#seccion-geografia"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Geografía
-                </a>
-                <a
-                  href="#seccion-puntos-calientes"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Puntos calientes
-                </a>
-                <a
-                  href="#seccion-plataformas"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Plataformas
-                </a>
-                <a
-                  href="#seccion-temas"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Temas
-                </a>
-                <a
-                  href="#seccion-tipos"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Tipos y etiquetas
-                </a>
-                <a
-                  href="#seccion-actividad"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Actividad
-                </a>
-                <a
-                  href="#seccion-demografia"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Demografía
-                </a>
-              </div>
-            )}
-
-            <NavLink
-              to="/dashboard/usuarios"
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Padrón de usuarios
-            </NavLink>
-
-            <NavLink
-              to="/dashboard/cuarentena"
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Cuarentena
-            </NavLink>
-          </nav>
-
-          <div className="barra-lateral__pie">
-            {usuario && (
-              <div className="ficha-usuario">
-                <p className="ficha-usuario__nombre">{usuario.nombre}</p>
-                <p className="ficha-usuario__correo">{usuario.correo}</p>
-                <span className="ficha-usuario__rol">{usuario.rol}</span>
-              </div>
-            )}
-            <span className="etiqueta-lectura">Modo solo lectura</span>
-          </div>
-        </aside>
-
-        {menuAbierto && (
           <button
             type="button"
-            className="fondo-movil"
-            aria-label="Cerrar menú lateral"
-            onClick={() => setMenuAbierto(false)}
-          />
-        )}
+            className="barra__menu"
+            aria-expanded={menuAbierto}
+            aria-controls="barra-paneles"
+            onClick={() => setMenuAbierto((previo) => !previo)}
+          >
+            {menuAbierto ? 'Cerrar menú' : 'Menú'}
+          </button>
 
-        <div className="contenedor-principal">
-          <header className="encabezado">
-            <div className="encabezado__izquierda">
-              <button
-                type="button"
-                className="boton-menu"
-                onClick={() => setMenuAbierto((previo) => !previo)}
-                aria-label="Alternar menú de navegación"
-              >
-                ☰
-              </button>
-              <div>
-                <h1 className="encabezado__titulo">Panel Analítico</h1>
-                <p className="encabezado__descripcion">
-                  TiDB Cloud · Couchbase Capella
-                </p>
+          <div id="barra-paneles" className="barra__paneles">
+            <nav className="barra__nav" aria-label="Secciones">
+              {SECCIONES.map((seccion) => (
+                <NavLink
+                  key={seccion.a}
+                  to={seccion.a}
+                  end={seccion.fin}
+                  className={({ isActive }) => `barra__enlace ${isActive ? 'barra__enlace--activo' : ''}`}
+                >
+                  {seccion.texto}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="barra__derecha">
+              <div className="barra__en-vivo">
+                <ControlesEnVivo salud={salud} />
               </div>
-            </div>
-
-            <div className="encabezado__derecha">
-              <div
-                className={`estado-salud ${claseEstadoSalud}`}
-                role="status"
-                aria-live="polite"
-              >
-                <span className="estado-salud__punto" aria-hidden="true" />
-                {estadoSalud === 'ok' ? (
-                  <span>
-                    API activa · TiDB: {salud.tidb ? 'ok' : 'sin conexión'} · Capella:{' '}
-                    {salud.capella ? 'ok' : 'sin conexión'}
-                  </span>
-                ) : estadoSalud === 'degradado' ? (
-                  <span>
-                    degradado · TiDB: {salud.tidb ? 'ok' : 'sin conexión'} · Capella:{' '}
-                    {salud.capella ? 'ok' : 'sin conexión'}
-                  </span>
-                ) : (
-                  <span>sin conexión</span>
-                )}
-              </div>
-
               {usuario && (
-                <div className="sesion-encabezado">
-                  <span className="sesion-encabezado__usuario">
-                    {usuario.nombre}{' '}
-                    <span className="sesion-encabezado__rol">({usuario.rol})</span>
-                  </span>
-                </div>
+                <span className="pildora-usuario">
+                  {usuario.nombre}
+                  <span className="pildora-usuario__rol">{usuario.rol}</span>
+                </span>
               )}
-
               <button
                 type="button"
-                className="boton-cerrar-sesion"
+                className="boton boton--secundario boton--barra"
                 onClick={manejarCierreSesion}
                 disabled={cerrandoSesion}
               >
                 {cerrandoSesion ? 'Cerrando sesión…' : 'Cerrar sesión'}
               </button>
             </div>
-          </header>
-
-          {errorCierre && (
-            <div className="aviso-cierre" role="alert">
-              {errorCierre}
-            </div>
-          )}
-
-          <main className="contenido-principal">
-            <Outlet context={{ usuario }} />
-          </main>
+          </div>
         </div>
-      </div>
+      </header>
+
+      {errorCierre && (
+        <div className="aviso-cierre" role="alert">
+          {errorCierre}
+        </div>
+      )}
+
+      <main id="contenido" className="contenido" tabIndex={-1}>
+        {/* Fundido de 200 ms al cambiar de vista */}
+        <div key={ubicacion.pathname} className="vista-transicion">
+          <Outlet context={{ usuario }} />
+        </div>
+      </main>
+
+      <AvisosFlotantes />
+    </div>
+  );
+}
+
+export default function LayoutDashboard() {
+  return (
+    <ProveedorCatalogos>
+      <ProveedorEnVivo>
+        <LayoutInterno />
+      </ProveedorEnVivo>
     </ProveedorCatalogos>
   );
 }
