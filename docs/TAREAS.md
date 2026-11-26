@@ -43,7 +43,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F5-01 | [CC] | Servidor `/ws/metricas` autenticado y difusión del resumen | F4-01 | hecho |
-| F5-02 | [AG] | Cliente WebSocket y actualización de gráficas sin recargar | F5-01 | en curso |
+| F5-02 | [AG] | Cliente WebSocket y actualización de gráficas sin recargar | F5-01 | hecho |
 
 ## Fase 6 · Dashboard (se detalla al cerrar la Fase 5)
 

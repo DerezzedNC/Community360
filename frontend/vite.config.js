@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Configuración de Vite con proxy hacia FastAPI (mismo origen para cookie httpOnly)
+// Configuración de Vite con proxy hacia FastAPI (mismo origen para cookie httpOnly y Origin WebSocket)
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -15,7 +15,7 @@ export default defineConfig({
       '/ws': {
         target: 'http://localhost:8000',
         ws: true,
-        changeOrigin: true,
+        rewriteWsOrigin: false,
       },
     },
   },

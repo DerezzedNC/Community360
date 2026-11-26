@@ -636,6 +636,77 @@ body {
   text-align: right;
 }
 
+/* Estado del canal WebSocket en tiempo real */
+.barra-estado-ws {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.95rem;
+}
+
+.barra-estado-ws .boton-secundario {
+  margin-top: 0;
+}
+
+.insignia-ws {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--color-borde);
+}
+
+.insignia-ws__punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.insignia-ws--conectado {
+  background-color: var(--color-exito-fondo);
+  color: var(--color-exito-texto);
+  border-color: #bbf7d0;
+}
+
+.insignia-ws--conectado .insignia-ws__punto {
+  background-color: var(--color-exito-punto);
+}
+
+.insignia-ws--reconectando {
+  background-color: var(--color-alerta-fondo);
+  color: var(--color-alerta-texto);
+  border-color: #fde68a;
+}
+
+.insignia-ws--reconectando .insignia-ws__punto {
+  background-color: var(--color-alerta-punto);
+}
+
+.insignia-ws--error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.insignia-ws--error .insignia-ws__punto {
+  background-color: #dc2626;
+}
+
+.aviso-servicio-ws {
+  margin-bottom: 0.95rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radio-medio);
+  background-color: var(--color-alerta-fondo);
+  color: var(--color-alerta-texto);
+  border: 1px solid #fde68a;
+  font-size: 0.83rem;
+}
+
 /* Vistas históricas y zona de filtros alimentada por /api/catalogos */
 .vista-historica {
   display: flex;

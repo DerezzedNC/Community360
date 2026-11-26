@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import TarjetaSeccion from '../componentes/TarjetaSeccion';
 import {
   GraficaBarras,
@@ -7,12 +7,12 @@ import {
 } from '../componentes/graficas';
 import { useCatalogos } from '../contextos/ContextoCatalogos';
 import useConsultaApi from '../hooks/useConsultaApi';
+import useMetricasTiempoReal from '../hooks/useMetricasTiempoReal';
 import {
   consultarMetricasActividad,
   consultarMetricasEstatus,
   consultarMetricasGeografia,
   consultarMetricasPlataformas,
-  consultarMetricasResumen,
   consultarMetricasTemas,
 } from '../servicios/api';
 
@@ -35,12 +35,28 @@ const NOMBRES_DIA_SEMANA = {
 export default function PaginaDashboard() {
   const { obtenerNombreLegible } = useCatalogos();
 
-  const consultaResumen = useConsultaApi(consultarMetricasResumen);
   const consultaEstatus = useConsultaApi(consultarMetricasEstatus);
   const consultaGeografia = useConsultaApi(consultarMetricasGeografia);
   const consultaPlataformas = useConsultaApi(consultarMetricasPlataformas);
   const consultaTemas = useConsultaApi(consultarMetricasTemas);
   const consultaActividad = useConsultaApi(consultarMetricasActividad);
+
+  // Cuando llega un nuevo evento metricas.actualizadas tras un alta, cambio o baja,
+  // se refrescan en su lugar las gráficas que dependen de interacciones en Capella.
+  const manejarCambioTiempoReal = useCallback(() => {
+    consultaPlataformas.refrescarSilencioso();
+    consultaTemas.refrescarSilencioso();
+    consultaActividad.refrescarSilencioso();
+  }, [consultaActividad, consultaPlataformas, consultaTemas]);
+
+  const {
+    conexionWs,
+    resumen: r,
+    ultimoEventoTs,
+    avisoServicioResumen,
+    esperaReconexionSeg,
+    reconectarAhora,
+  } = useMetricasTiempoReal(manejarCambioTiempoReal);
 
   const [nivelGeografia, setNivelGeografia] = useState('estados');
   const [vistaTemas, setVistaTemas] = useState('interacciones');
@@ -122,7 +138,6 @@ export default function PaginaDashboard() {
     }
 
     if (vistaTemas === 'sentimiento') {
-      // Un promedio sin interacciones llega como null: no se sustituye por 0
       const conDatos = filas.filter(
         (fila) =>
           fila.sentimiento_promedio !== null &&
@@ -173,7 +188,6 @@ export default function PaginaDashboard() {
       new Set(celdasApi.map((celda) => celda.hora))
     ).sort((a, b) => a - b);
 
-    // Se invierte el orden vertical para que Lunes (1) aparezca arriba y Domingo (7) abajo
     const diasUnicos = Array.from(
       new Set(celdasApi.map((celda) => celda.dia_semana))
     ).sort((a, b) => b - a);
@@ -206,37 +220,60 @@ export default function PaginaDashboard() {
     };
   }, [consultaActividad.datos]);
 
-  const r = consultaResumen.datos;
+  const claseEstadoWs =
+    conexionWs === 'conectado'
+      ? 'insignia-ws--conectado'
+      : conexionWs === 'origen_rechazado'
+        ? 'insignia-ws--error'
+        : 'insignia-ws--reconectando';
+
+  const textoEstadoWs =
+    conexionWs === 'conectado'
+      ? 'Tiempo real activo'
+      : conexionWs === 'origen_rechazado'
+        ? 'Origen rechazado (4403)'
+        : conexionWs === 'reconectando'
+          ? esperaReconexionSeg > 0
+            ? `Reconectando en ${esperaReconexionSeg} s…`
+            : 'Reconectando canal…'
+          : 'Conectando tiempo real…';
 
   return (
     <div className="rejilla-dashboard">
       <TarjetaSeccion
         id="seccion-resumen"
         titulo="Resumen de indicadores"
-        descripcion="Totales e indicadores principales calculados en tiempo real sobre TiDB Cloud y Couchbase Capella."
-        rutaApi="GET /api/metricas/resumen"
+        descripcion="Indicadores en vivo recibidos por WebSocket al conectar y tras cada alta, cambio o baja de interacciones."
+        rutaApi="WS /ws/metricas"
         anchoCompleto
       >
-        {consultaResumen.cargando ? (
-          <div className="estado-grafica" role="status" aria-live="polite">
-            <span className="indicador-carga" aria-hidden="true" />
-            <p className="estado-grafica__texto">Cargando indicadores…</p>
+        <div className="barra-estado-ws">
+          <div className={`insignia-ws ${claseEstadoWs}`} role="status" aria-live="polite">
+            <span className="insignia-ws__punto" aria-hidden="true" />
+            <span>{textoEstadoWs}</span>
           </div>
-        ) : consultaResumen.error ? (
-          <div className="estado-grafica estado-grafica--error" role="alert">
-            <p className="estado-grafica__titulo">
-              No se pudo cargar el resumen de indicadores
-            </p>
-            <p className="estado-grafica__texto">{consultaResumen.error}</p>
+
+          {(conexionWs === 'reconectando' || conexionWs === 'origen_rechazado') && (
             <button
               type="button"
               className="boton-secundario"
-              onClick={consultaResumen.reintentar}
+              onClick={reconectarAhora}
             >
-              Reintentar
+              Reconectar ahora
             </button>
+          )}
+        </div>
+
+        {avisoServicioResumen && r && (
+          <div className="aviso-servicio-ws" role="alert">
+            <span>
+              <strong>{avisoServicioResumen}.</strong> Se conserva en pantalla
+              el último corte válido recibido.
+            </span>
           </div>
-        ) : r ? (
+        )}
+
+        {r ? (
           <>
             <div className="rejilla-kpis">
               <div className="tarjeta-kpi">
@@ -281,15 +318,35 @@ export default function PaginaDashboard() {
                 <p className="tarjeta-kpi__valor">{r.en_cuarentena}</p>
               </div>
             </div>
-            {r.generado_en && (
+            {(r.generado_en || ultimoEventoTs) && (
               <p className="nota-pie-resumen">
-                Corte generado en UTC: <code>{r.generado_en}</code>
+                Corte generado en UTC: <code>{r.generado_en || ultimoEventoTs}</code>
               </p>
             )}
           </>
+        ) : avisoServicioResumen || conexionWs === 'origen_rechazado' ? (
+          <div className="estado-grafica estado-grafica--error" role="alert">
+            <p className="estado-grafica__titulo">
+              Resumen en tiempo real no disponible
+            </p>
+            <p className="estado-grafica__texto">
+              {avisoServicioResumen ||
+                'No fue posible establecer el canal en tiempo real.'}
+            </p>
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={reconectarAhora}
+            >
+              Reintentar conexión
+            </button>
+          </div>
         ) : (
-          <div className="estado-grafica" role="status">
-            <p className="estado-grafica__texto">Sin datos disponibles</p>
+          <div className="estado-grafica" role="status" aria-live="polite">
+            <span className="indicador-carga" aria-hidden="true" />
+            <p className="estado-grafica__texto">
+              Esperando resumen inicial por WebSocket…
+            </p>
           </div>
         )}
       </TarjetaSeccion>
