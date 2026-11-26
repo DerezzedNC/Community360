@@ -153,3 +153,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué cambió: conexión de `GET /api/catalogos` (Contrato v0.5) mediante `ContextoCatalogos.jsx` (una sola consulta al entrar al dashboard; traducción de nombres incluyendo `activo: false` y opciones de filtros estrictamente con `activo: true`, sin listas fijas ni geografía); rutas históricas protegidas `/dashboard/usuarios` y `/dashboard/cuarentena` dentro de `RutaProtegida`; selectores `plataforma`, `especie` e `interes` en `VistaUsuarios.jsx` sincronizados con `URLSearchParams` y manejo de error aislado en la zona de filtros con botón "Reintentar".
 - Cómo se prueba: verificado por Angel en navegador (redirección sin sesión desde `/dashboard/usuarios` → `/login`, nombres de catálogos, persistencia en URL con `F5` y botón Atrás) y `npm run build`.
 - PETICIÓN →CC / →AG (si aplica): ninguna (la petición de F4-00 quedó atendida por `[CC]` en el Contrato v0.9 e `INDICADORES.md`).
+
+
+## 2026-11-25 · [AG] · F4-03b
+- Qué cambió: vista histórica del padrón en `VistaUsuarios.jsx` conectada a `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` (Contrato v0.6), con paginación reutilizable en `PaginacionTabla.jsx` (`limite = 50`, reinicio a página 1 al cambiar cualquier filtro y sincronización con la URL), filtro de `estatus` (`activo`, `en_riesgo`, `inactivo`) combinado con `plataforma`, `especie` e `interes`, traducción de `cod_*` con `/api/catalogos`, modal de detalle (`404` → `"Usuario no encontrado"`) y cumplimiento estricto de privacidad (`ubicacion: null` muestra `"Sin consentimiento"`, sin deducir ni consultar otra fuente).
+- Cómo se prueba: en `http://localhost:5173/dashboard/usuarios`, probar filtros combinados, cambio de página, F5/Atrás y botón `"Ver detalle"` tanto en un usuario con consentimiento como en uno sin consentimiento.
+- PETICIÓN →CC / →AG (si aplica): ninguna.

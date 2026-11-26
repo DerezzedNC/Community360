@@ -101,3 +101,31 @@ export async function cerrarSesion(senal) {
 export async function consultarCatalogos(senal) {
   return peticionApi('/api/catalogos', { senal });
 }
+
+export async function consultarUsuarios(parametros = {}, senal) {
+  const {
+    pagina = 1,
+    limite = 50,
+    estatus = '',
+    plataforma = '',
+    especie = '',
+    interes = '',
+  } = parametros;
+
+  const busqueda = new URLSearchParams();
+  busqueda.set('pagina', String(pagina));
+  busqueda.set('limite', String(limite));
+
+  if (estatus) busqueda.set('estatus', estatus);
+  if (plataforma) busqueda.set('plataforma', plataforma);
+  if (especie) busqueda.set('especie', especie);
+  if (interes) busqueda.set('interes', interes);
+
+  return peticionApi(`/api/usuarios?${busqueda.toString()}`, { senal });
+}
+
+export async function consultarDetalleUsuario(idUsuario, senal) {
+  return peticionApi(`/api/usuarios/${encodeURIComponent(idUsuario)}`, {
+    senal,
+  });
+}

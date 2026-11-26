@@ -24,7 +24,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F4-00 | [AG] | Estructura del dashboard y componentes de gráficas | — | hecho |
-| F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | pendiente |
+| F4-01 | [CC] | CRUD de interacciones en Capella con validación contra TiDB | F3-04 | en curso |
 | F4-02a | [CC] | `GET /api/catalogos`: los 8 catálogos de TiDB | F3-04 | hecho |
 | F4-02b | [CC] | `GET /api/usuarios` (paginado y con filtros) y `GET /api/usuarios/{id_usuario}`. `ubicacion` es `null` sin consentimiento, con prueba que lo garantice | F4-02a | hecho |
 | F4-04 | [CC] | Pool de conexiones a TiDB (pocas conexiones, ping antes de usar, renovación antes del cierre por inactividad) | F4-02b | hecho |
@@ -33,7 +33,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | F4-02e | [CC] | Métricas que usan Capella: `GET /api/metricas/temas`, `/actividad`, `/plataformas` y `/resumen`. Incluye la consulta a Capella y su `503` | F4-02c, F4-02d | hecho |
 | F4-02f | [CC] | `GET /api/cuarentena` (paginado, filtro `motivo`). Revisar antes qué campos se muestran por privacidad | F4-02e | hecho |
 | F4-03a | [AG] | Navegación de las vistas históricas y carga de catálogos (nombres legibles y opciones de los filtros) | F3-08, F4-02a | hecho |
-| F4-03b | [AG] | Vista de usuarios: tabla paginada, filtros y detalle. Ubicación solo si la API la da | F4-03a, F4-02b | pendiente |
+| F4-03b | [AG] | Vista de usuarios: tabla paginada, filtros y detalle. Ubicación solo si la API la da | F4-03a, F4-02b | hecho |
 | F4-03c | [AG] | Gráficas históricas de estatus (dona) y geografía (barras) | F4-03a, F4-02d | pendiente |
 | F4-03d | [AG] | Tarjetas de resumen y gráficas históricas de plataformas, temas y actividad (mapa de calor día × hora) | F4-03a, F4-02e | pendiente |
 | F4-03e | [AG] | Vista de cuarentena: tabla paginada y filtro por motivo | F4-03a, F4-02f | pendiente |
