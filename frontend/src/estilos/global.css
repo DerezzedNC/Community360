@@ -542,6 +542,54 @@ body {
   background-color: #f1f5f9;
 }
 
+.nota-metrica {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--color-texto-secundario);
+}
+
+.barra-controles-seccion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.barra-controles-seccion .nota-metrica {
+  margin: 0;
+}
+
+.grupo-conmutador {
+  display: inline-flex;
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f8fafc;
+}
+
+.boton-conmutador {
+  border: 0;
+  background: transparent;
+  padding: 0.32rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+}
+
+.boton-conmutador--activo {
+  background-color: var(--color-acento);
+  color: #ffffff;
+}
+
+.contenedor-grafica-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
 /* Vistas históricas y zona de filtros alimentada por /api/catalogos */
 .vista-historica {
   display: flex;

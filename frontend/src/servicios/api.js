@@ -129,3 +129,11 @@ export async function consultarDetalleUsuario(idUsuario, senal) {
     senal,
   });
 }
+
+export async function consultarMetricasEstatus(senal) {
+  return peticionApi('/api/metricas/estatus', { senal });
+}
+
+export async function consultarMetricasGeografia(senal) {
+  return peticionApi('/api/metricas/geografia', { senal });
+}

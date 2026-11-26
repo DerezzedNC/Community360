@@ -159,3 +159,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué cambió: vista histórica del padrón en `VistaUsuarios.jsx` conectada a `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` (Contrato v0.6), con paginación reutilizable en `PaginacionTabla.jsx` (`limite = 50`, reinicio a página 1 al cambiar cualquier filtro y sincronización con la URL), filtro de `estatus` (`activo`, `en_riesgo`, `inactivo`) combinado con `plataforma`, `especie` e `interes`, traducción de `cod_*` con `/api/catalogos`, modal de detalle (`404` → `"Usuario no encontrado"`) y cumplimiento estricto de privacidad (`ubicacion: null` muestra `"Sin consentimiento"`, sin deducir ni consultar otra fuente).
 - Cómo se prueba: en `http://localhost:5173/dashboard/usuarios`, probar filtros combinados, cambio de página, F5/Atrás y botón `"Ver detalle"` tanto en un usuario con consentimiento como en uno sin consentimiento.
 - PETICIÓN →CC / →AG (si aplica): ninguna.
+
+
+## 2026-11-25 · [AG] · F4-03c
+- Qué cambió: conexión de las métricas históricas de TiDB en `PaginaDashboard.jsx` mediante el hook `useConsultaApi.js`: `GET /api/metricas/estatus` en `GraficaDona` (con total y porcentajes reales) y `GET /api/metricas/geografia` en `GraficaBarras` horizontal con selector de solo lectura `Estados` / `Ciudades`, mostrando `usuarios_con_ubicacion` y `minimo_por_grupo` sin completar ni inferir los grupos ocultos por privacidad.
+- Cómo se prueba: en `http://localhost:5173/dashboard`, verificar las tarjetas "Usuarios por estatus" y "Geografía" (conmutador Estados/Ciudades y reintento ante `503`).
+- PETICIÓN →CC / →AG (si aplica): ninguna.
