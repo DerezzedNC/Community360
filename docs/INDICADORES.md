@@ -59,7 +59,7 @@ Mapa de calor geográfico. **Cuadrícula de 0.2°** (unos 22 km de lado en Yucat
 
 ## Cómo cambian con altas, cambios y bajas
 
-El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `request_plus`, así que cada cambio se ve en la siguiente petición. Después de cada alta, cambio o baja exitosa, `/ws/metricas` manda el resumen nuevo; el dashboard vuelve a pedir las demás métricas.
+El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `request_plus`, así que cada cambio se ve en la siguiente petición. Después de cada alta, cambio o baja exitosa, `/ws/metricas` manda el resumen nuevo con `cambio` (`creada`, `editada` o `borrada` y el `id_interaccion`); el dashboard vuelve a pedir las demás métricas.
 
 | Indicador | Alta (`POST`) | Cambio (`PUT`) | Baja (`DELETE`) |
 |---|---|---|---|

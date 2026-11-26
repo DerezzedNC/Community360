@@ -127,7 +127,7 @@ def capella():
 def app(settings_prueba, capella):
     app = create_app(settings_prueba, TiDBInteracciones(), capella)
     app.state.avisos = []
-    app.state.avisar_cambio = lambda: app.state.avisos.append(1)
+    app.state.avisar_cambio = lambda tipo, id_: app.state.avisos.append((tipo, id_))
     return app
 
 
@@ -147,7 +147,7 @@ def test_crear_genera_id_y_calcula_longitud(app, cliente, capella):
     assert r.json()["longitud_texto"] == len("Hola comunidad")
     guardado = capella.docs["I0000204"]
     assert guardado["metadatos"]["origen"] == "api"
-    assert app.state.avisos == [1]
+    assert app.state.avisos == [("creada", "I0000204")]
 
 
 def test_reaccion_sin_texto(app, cliente, capella):
@@ -201,7 +201,7 @@ def test_leer_editar_y_borrar(app, cliente, capella):
     assert cliente.get("/api/interacciones/I0000203", headers=como(app)).status_code == 404
     assert cliente.delete("/api/interacciones/I0000203", headers=como(app)).status_code == 404
     assert cliente.put("/api/interacciones/I0000203", headers=como(app), json=valida()).status_code == 404
-    assert app.state.avisos == [1, 1]  # editar y borrar; los 404 no avisan
+    assert app.state.avisos == [("editada", "I0000203"), ("borrada", "I0000203")]  # los 404 no avisan
 
 
 def test_analista_no_escribe_403(app, cliente, capella):

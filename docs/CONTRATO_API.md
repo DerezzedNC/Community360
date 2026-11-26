@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.12** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
+**Versión 0.13** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
 
 | Versión | Cambio |
 |---|---|
+| 0.13 | WebSocket bidireccional: el cliente pide `{"accion": "actualizar"}`; un mensaje desconocido recibe `evento: error` sin cerrar; `metricas.actualizadas` trae `cambio` (F6-04) |
 | 0.12 | `GET /api/metricas/puntos-calientes`: mapa de calor en cuadros de 0.2°, solo el centro de cada cuadro y sin cuadros de menos de 3; excepción a la regla de coordenadas (F6-03) |
 | 0.11 | WebSocket `/ws/metricas`: resumen al conectarse y después de cada cambio del CRUD; cierres `4401` y `4403` (F5-01) |
 | 0.10 | CRUD de interacciones definido: cuerpo cerrado (otro campo → `422`), borrado físico, formato de `404`, `409` y `422` (F4-01) |
@@ -288,23 +289,33 @@ Filtro opcional `motivo`: `duplicado`, `tipo_dato_invalido`, `categoria_invalida
 
 ---
 
-## Fase 5 · WebSocket · v0.11
+## Fase 5 · WebSocket · v0.11, bidireccional desde v0.13
 
 Ruta: `ws://localhost:5173/ws/metricas` en el dashboard (proxy de Vite) o `ws://localhost:8000/ws/metricas` directo.
 
 - **Sesión:** la misma de las rutas HTTP, la cookie `c360_token` o el encabezado `Authorization: Bearer` (Postman). No se acepta el token en la URL. Sin sesión válida, el servidor cierra con `4401`. Ambos roles.
 - **Origen:** si el cliente manda `Origin` (un navegador siempre lo hace), debe ser `http://localhost:5173`; si no, cierra con `4403`.
-- **Al conectarse** el servidor manda el resumen. **Después de cada `POST`, `PUT` o `DELETE` exitoso** de interacciones, lo vuelve a mandar a todos los conectados. No consulta las bases por su cuenta: sin cambios no hay mensajes.
+- **Al conectarse** el servidor manda el resumen. **Después de cada `POST`, `PUT` o `DELETE` exitoso** de interacciones, lo vuelve a mandar a todos los conectados, en el mismo orden de los cambios. También lo manda **cuando el cliente lo pide** (`{"accion": "actualizar"}`), solo a ese cliente. No consulta las bases por su cuenta: sin cambios ni pedidos no hay mensajes.
 - Si la sesión vence o se cierra con logout, la conexión se cierra con `4401` en el siguiente envío.
 
 Mensajes del servidor:
 ```json
-{ "evento": "metricas.actualizadas",  "datos": { "...": "mismo formato que GET /api/metricas/resumen" }, "ts": "2026-11-25T20:15:00Z" }
-{ "evento": "metricas.no_disponibles", "datos": { "detail": "Base de datos no disponible" }, "ts": "..." }
+{ "evento": "metricas.actualizadas",  "cambio": { "tipo": "creada", "id_interaccion": "I0000204" }, "datos": { "...": "mismo formato que GET /api/metricas/resumen" }, "ts": "2026-11-25T20:15:00Z" }
+{ "evento": "metricas.no_disponibles", "cambio": null, "datos": { "detail": "Base de datos no disponible" }, "ts": "..." }
+{ "evento": "error", "datos": { "detail": "Mensaje no reconocido" }, "ts": "..." }
 { "evento": "pong" }
 ```
-`metricas.no_disponibles` llega si TiDB o Capella no responden al calcular el resumen; la conexión sigue abierta.
+- `cambio` (v0.13) dice qué provocó el mensaje: `tipo` es `creada`, `editada` o `borrada`, con el `id_interaccion`. Es `null` en el resumen inicial y en la respuesta a `actualizar`. `metricas.no_disponibles` también lo trae.
+- `metricas.no_disponibles` llega si TiDB o Capella no responden al calcular el resumen; la conexión sigue abierta.
 
-Mensaje del cliente: `{"tipo": "ping"}` → `{"evento": "pong"}`. Cualquier otro mensaje se ignora.
+Mensajes del cliente (exactamente estos objetos JSON):
 
-Los eventos por interacción (`interaccion.creada`, etc.) de la propuesta anterior no se implementan: el dashboard solo necesita el resumen. Para refrescar otras gráficas, el dashboard puede volver a pedir `GET /api/metricas/*` al recibir `metricas.actualizadas`.
+| Mensaje | Respuesta |
+|---|---|
+| `{"accion": "actualizar"}` | `metricas.actualizadas` con `cambio: null` (o `metricas.no_disponibles`) |
+| `{"tipo": "ping"}` | `{"evento": "pong"}` |
+| cualquier otro, texto que no es JSON o JSON que no es objeto | `evento: error` con `detail` `Mensaje no reconocido` o `El mensaje debe ser un objeto JSON`. **La conexión sigue abierta.** |
+
+Toda respuesta revisa antes la sesión: si venció o se cerró con logout, cierra con `4401`.
+
+Los eventos separados por interacción (`interaccion.creada`, etc.) de la propuesta anterior no se implementan: el tipo de cambio viaja en `cambio`. Para refrescar otras gráficas, el dashboard puede volver a pedir `GET /api/metricas/*` al recibir `metricas.actualizadas`.

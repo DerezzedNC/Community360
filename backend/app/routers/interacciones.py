@@ -128,11 +128,11 @@ def a_documento(datos: DatosInteraccion, metadatos: dict) -> dict:
     return doc
 
 
-def avisar_cambio(request: Request) -> None:
-    """Fase 5: el WebSocket manda el resumen actualizado. No frena la respuesta si falla."""
+def avisar_cambio(request: Request, tipo: str, id_interaccion: str) -> None:
+    """El WebSocket manda el resumen actualizado y qué cambió. No frena la respuesta."""
     aviso = getattr(request.app.state, "avisar_cambio", None)
     if aviso:
-        aviso()
+        aviso(tipo, id_interaccion)
 
 
 # --- Lectura (ambos roles) -----------------------------------------------------------
@@ -191,7 +191,7 @@ def crear_interaccion(request: Request, datos: NuevaInteraccion, sesion: SesionA
                 continue
         else:
             raise HTTPException(status_code=409, detail="No se pudo asignar un id; intenta de nuevo")
-    avisar_cambio(request)
+    avisar_cambio(request, "creada", id_interaccion)
     return Interaccion.model_validate({"id_interaccion": id_interaccion, **doc})
 
 
@@ -213,7 +213,7 @@ def editar_interaccion(
         repo.reemplazar(capella, id_interaccion, doc)
     except repo.NoEncontrada:  # la borraron entre la lectura y el cambio
         raise HTTPException(status_code=404, detail="Interacción no encontrada") from None
-    avisar_cambio(request)
+    avisar_cambio(request, "editada", id_interaccion)
     return Interaccion.model_validate({"id_interaccion": id_interaccion, **doc})
 
 
@@ -223,5 +223,5 @@ def borrar_interaccion(request: Request, id_interaccion: IdRuta) -> Response:
         repo.borrar(request.app.state.capella, id_interaccion)
     except repo.NoEncontrada:
         raise HTTPException(status_code=404, detail="Interacción no encontrada") from None
-    avisar_cambio(request)
+    avisar_cambio(request, "borrada", id_interaccion)
     return Response(status_code=204)

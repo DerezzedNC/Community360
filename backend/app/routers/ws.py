@@ -1,15 +1,19 @@
-"""WebSocket /ws/metricas (contrato v0.11): resumen al conectarse y después de cada cambio."""
+"""WebSocket /ws/metricas (contrato v0.13): resumen al conectarse, después de cada cambio y a pedido."""
 import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.dependencias import leer_token
-from app.difusor import SESION_VENCIDA
+from app.difusor import SESION_VENCIDA, ahora_utc
 from app.tokens import TokenInvalido
 
 router = APIRouter()
 
 ORIGEN_NO_PERMITIDO = 4403
+
+
+def mensaje_error(detalle: str) -> dict:
+    return {"evento": "error", "datos": {"detail": detalle}, "ts": ahora_utc()}
 
 
 @router.websocket("/ws/metricas")
@@ -42,9 +46,17 @@ async def ws_metricas(websocket: WebSocket) -> None:
             try:
                 mensaje = json.loads(texto)
             except ValueError:
-                continue
-            if isinstance(mensaje, dict) and mensaje.get("tipo") == "ping":
-                await difusor.enviar(websocket, {"evento": "pong"})
+                mensaje = None
+            if not isinstance(mensaje, dict):
+                respuesta = mensaje_error("El mensaje debe ser un objeto JSON")
+            elif mensaje == {"accion": "actualizar"}:
+                respuesta = await difusor.mensaje_resumen()
+            elif mensaje == {"tipo": "ping"}:
+                respuesta = {"evento": "pong"}
+            else:
+                respuesta = mensaje_error("Mensaje no reconocido")  # la conexión sigue abierta
+            # enviar() revisa la sesión: si venció, cierra con 4401 y el ciclo termina
+            await difusor.enviar(websocket, respuesta)
     except (WebSocketDisconnect, RuntimeError):
         pass  # el cliente cerró, o el difusor cerró la conexión por sesión vencida
     finally:

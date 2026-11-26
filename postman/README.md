@@ -81,4 +81,12 @@ No capturar:
 
 ## WebSocket (Fase 5)
 
-La colección v2.1 no guarda peticiones WebSocket; se crea a mano en Postman: **New → WebSocket**, URL `ws://localhost:8000/ws/metricas`, pestaña *Headers* con `Authorization: Bearer {{c360_token}}` (después de un Login), y **Connect**. Llega el resumen. Con la conexión abierta, enviar 26, 29 o 30 de la carpeta CRUD: llega el resumen actualizado. Mandar `{"tipo": "ping"}` responde `{"evento": "pong"}`.
+La colección v2.1 no guarda peticiones WebSocket; se crea a mano en Postman: **New → WebSocket**, URL `ws://localhost:8000/ws/metricas`, pestaña *Headers* con `Authorization: Bearer {{c360_token}}` (después de un Login), y **Connect**. Llega el resumen. Con la conexión abierta, enviar 26, 29 o 30 de la carpeta CRUD: llega el resumen actualizado. Cada mensaje trae `cambio` con `tipo` (`creada`, `editada`, `borrada`) e `id_interaccion`.
+
+Es bidireccional. En el cuadro de mensaje, enviar (como JSON):
+
+| Mensaje | Respuesta |
+|---|---|
+| `{"accion": "actualizar"}` | `metricas.actualizadas` con `cambio: null` |
+| `{"tipo": "ping"}` | `{"evento": "pong"}` |
+| `{"accion": "borrar"}` (o cualquier otro) | `evento: error`, `Mensaje no reconocido`; la conexión sigue abierta |

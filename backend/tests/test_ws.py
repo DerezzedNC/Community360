@@ -1,4 +1,4 @@
-"""WebSocket /ws/metricas (contrato v0.11). Sin red: reutiliza las bases falsas de las métricas."""
+"""WebSocket /ws/metricas (contrato v0.13). Sin red: reutiliza las bases falsas de las métricas."""
 import time
 
 import pytest
@@ -28,7 +28,7 @@ def sesion(app, rol="analista"):
 def test_manda_el_resumen_al_conectarse(app, cliente):
     with cliente.websocket_connect(RUTA, headers=sesion(app)) as ws:
         mensaje = ws.receive_json()
-    assert mensaje["evento"] == "metricas.actualizadas"
+    assert mensaje["evento"] == "metricas.actualizadas" and mensaje["cambio"] is None
     assert mensaje["datos"]["usuarios"] == 10 and mensaje["datos"]["interacciones"] == 3
 
 
@@ -41,15 +41,39 @@ def test_funciona_con_la_cookie_del_dashboard(app, cliente):
 def test_reenvia_el_resumen_cuando_el_crud_avisa(app, cliente):
     with cliente.websocket_connect(RUTA, headers=sesion(app)) as ws:
         ws.receive_json()
-        app.state.avisar_cambio()  # lo mismo que hace el CRUD después de escribir
-        assert ws.receive_json()["evento"] == "metricas.actualizadas"
+        app.state.avisar_cambio("borrada", "I0000203")  # lo mismo que hace el CRUD
+        mensaje = ws.receive_json()
+        assert mensaje["evento"] == "metricas.actualizadas"
+        assert mensaje["cambio"] == {"tipo": "borrada", "id_interaccion": "I0000203"}
         ws.send_json({"tipo": "ping"})
         assert ws.receive_json() == {"evento": "pong"}
     assert app.state.difusor.calculos == 2
 
 
+def test_el_cliente_pide_actualizar(app, cliente):
+    with cliente.websocket_connect(RUTA, headers=sesion(app)) as ws:
+        ws.receive_json()
+        ws.send_json({"accion": "actualizar"})
+        mensaje = ws.receive_json()
+    assert mensaje["evento"] == "metricas.actualizadas" and mensaje["cambio"] is None
+    assert mensaje["datos"]["interacciones"] == 3
+    assert app.state.difusor.calculos == 2
+
+
+@pytest.mark.parametrize("texto", ['{"accion": "borrar"}', "no es json", "[1, 2]", '{"tipo": "ping", "x": 1}'])
+def test_mensaje_desconocido_da_error_sin_cerrar(app, cliente, texto):
+    with cliente.websocket_connect(RUTA, headers=sesion(app)) as ws:
+        ws.receive_json()
+        ws.send_text(texto)
+        error = ws.receive_json()
+        assert error["evento"] == "error" and error["datos"]["detail"]
+        ws.send_json({"tipo": "ping"})  # la conexión sigue abierta
+        assert ws.receive_json() == {"evento": "pong"}
+    assert app.state.difusor.calculos == 1  # un error no consulta las bases
+
+
 def test_sin_clientes_no_consulta_las_bases(app):
-    app.state.avisar_cambio()
+    app.state.avisar_cambio("creada", "I0000204")
     time.sleep(0.05)
     assert app.state.difusor.calculos == 0
 
@@ -73,7 +97,7 @@ def test_sesion_revocada_se_cierra_en_el_siguiente_envio(app, cliente):
     with cliente.websocket_connect(RUTA, headers={"Authorization": f"Bearer {token}"}) as ws:
         ws.receive_json()
         app.state.tokens.revocar(app.state.tokens.validar(token))  # logout en otra pestaña
-        app.state.avisar_cambio()
+        app.state.avisar_cambio("editada", "I0000203")
         with pytest.raises(WebSocketDisconnect) as e:
             ws.receive_json()
     assert e.value.code == 4401
@@ -99,5 +123,12 @@ def test_ws_con_bases_reales_reenvia_tras_crear_y_borrar():
             assert cliente.delete(f"/api/interacciones/{creada.json()['id_interaccion']}",
                                   headers=admin).status_code == 204
         tras_borrar = ws.receive_json()
+        ws.send_json({"accion": "actualizar"})
+        a_pedido = ws.receive_json()
+    id_creada = creada.json()["id_interaccion"]
+    assert tras_crear["cambio"] == {"tipo": "creada", "id_interaccion": id_creada}
+    assert tras_borrar["cambio"] == {"tipo": "borrada", "id_interaccion": id_creada}
+    assert a_pedido["cambio"] is None
+    assert a_pedido["datos"]["interacciones"] == inicial["datos"]["interacciones"]
     assert tras_crear["datos"]["interacciones"] == inicial["datos"]["interacciones"] + 1
     assert tras_borrar["datos"]["interacciones"] == inicial["datos"]["interacciones"]
