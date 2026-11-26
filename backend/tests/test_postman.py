@@ -96,7 +96,7 @@ def test_fase_4_abre_su_propia_sesion(coleccion):
     [fase4] = [c for c in coleccion["item"] if c["name"].startswith("Fase 4")]
     nombres = [i["name"] for i in peticiones(fase4)]
     assert nombres[0] == "11. Login analista"
-    assert nombres[-1] == "17. Logout (analista)"
+    assert nombres[-1].endswith(". Logout (analista)")
     # Numeración seguida, sin huecos, después de la Fase 3
     assert [int(n.split(".")[0]) for n in nombres] == list(range(11, 11 + len(nombres)))
     for texto in ("Catálogos", "Usuarios (página 1)", "Usuarios filtrados", "Usuario sin consentimiento"):

@@ -135,3 +135,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué hace: `backend/app/db/tidb.py` reutiliza hasta 4 conexiones, con ping antes de usarlas y renovación después de 4 min sin uso. Una conexión con error se descarta. Contrato v0.7: si las 4 siguen ocupadas después de 10 s, `503` igual que con TiDB caída. Con TiDB real, una conexión reutilizada tarda 0.3 s y una nueva de 0.5 a 5.5 s (con WARP).
 - Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_tidb_pool.py`. Hay que reiniciar la API.
 - Aviso →AG: nada que cambiar; las peticiones del dashboard deberían responder más rápido.
+
+## 2026-11-25 · [CC] · F4-02c, F4-02d y F4-02e Métricas
+- Qué hace: `docs/INDICADORES.md` (fórmulas) y las 6 rutas `GET /api/metricas/*`: `resumen`, `estatus`, `plataformas`, `temas`, `actividad` y `geografia` (`backend/app/routers/metricas.py`, `backend/app/repositorios/metricas.py`). Contrato v0.8. Geografía solo cuenta usuarios con consentimiento, por estado y ciudad, oculta grupos de menos de 3 usuarios y nunca trae coordenadas. Si falta Capella, `503` con el mismo mensaje que TiDB.
+- Estado: `pytest` sin nube, 196 de 196. Las consultas de TiDB se revisaron contra la base real (solo lectura). Las de Capella **no se han probado con la base real** (WARP activo): se hace en la prueba `nube` del cierre de fase.
+- Cómo se prueba: reiniciar la API; Postman, carpeta Fase 4 → 17 a 22. Con WARP activo, `resumen`, `plataformas`, `temas` y `actividad` dan `503`; es lo esperado.
+- Aviso →AG: ya pueden tomar F4-03c y F4-03d. `plataforma` y `tema` son códigos (nombre con `/api/catalogos`); `actividad` está en UTC con `dia_semana` 1 = lunes; en geografía no inventen ni completen los grupos ocultos.

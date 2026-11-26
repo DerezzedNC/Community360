@@ -11,7 +11,8 @@ from datetime import timedelta
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.collection import Collection
-from couchbase.options import ClusterOptions, ExistsOptions
+from couchbase.n1ql import QueryScanConsistency
+from couchbase.options import ClusterOptions, ExistsOptions, QueryOptions
 
 from app.config import Settings
 
@@ -87,6 +88,25 @@ class Capella:
             raise CapellaNoDisponible("Couchbase Capella no está disponible")
         s = self._settings
         return cluster.bucket(s.CB_BUCKET).scope(s.CB_SCOPE).collection(nombre)
+
+    def consultar(self, sql: str, **parametros) -> list:
+        """Consulta SQL++ dentro del scope (FROM interacciones, FROM cuarentena).
+
+        request_plus: la consulta ve todo lo escrito antes, aunque el índice no se haya
+        actualizado todavía. Los valores del cliente van siempre como $parametros.
+        """
+        self.conectar()
+        cluster = self._cluster
+        if cluster is None:
+            raise CapellaNoDisponible("Couchbase Capella no está disponible")
+        s = self._settings
+        opciones = QueryOptions(
+            named_parameters=parametros,
+            scan_consistency=QueryScanConsistency.REQUEST_PLUS,
+            timeout=timedelta(seconds=15),
+        )
+        resultado = cluster.bucket(s.CB_BUCKET).scope(s.CB_SCOPE).query(sql, opciones)
+        return list(resultado.rows())
 
     def probar(self) -> bool:
         """True si se puede leer la colección interacciones. No escribe nada."""

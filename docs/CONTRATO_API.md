@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.7** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos` y `GET /api/usuarios`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+**Versión 0.8** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos`, `GET /api/usuarios` y `GET /api/metricas/*`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
 
 | Versión | Cambio |
 |---|---|
+| 0.8 | `GET /api/metricas/*` definidos; geografía oculta grupos de menos de 3 usuarios; `503` también si Capella no responde (F4-02c, d y e) |
 | 0.7 | El `503` de TiDB también aplica si las conexiones del pool siguen ocupadas después de 10 s (F4-04) |
 | 0.6 | `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` definidos; reglas generales de paginación (`422` fuera de rango) y de privacidad (nunca coordenadas) (F4-02b) |
 | 0.5 | `GET /api/catalogos` definido: formato, orden, códigos inactivos con `activo: false` y sin geografía (F4-02a) |
@@ -134,12 +135,12 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 | `GET /api/usuarios` | Padrón paginado. **Definido en v0.6**: ver abajo |
 | `GET /api/usuarios/{id_usuario}` | Un usuario. **Definido en v0.6**: ver abajo |
 | `GET /api/catalogos` | Los 8 catálogos de TiDB. **Definido en v0.5**: ver abajo |
-| `GET /api/metricas/resumen` | Totales e indicadores principales (ver `docs/INDICADORES.md`) |
-| `GET /api/metricas/estatus` | Usuarios por estatus (activo, en riesgo, inactivo) |
-| `GET /api/metricas/plataformas` | Usuarios e interacciones por plataforma |
-| `GET /api/metricas/temas` | Interacciones y sentimiento promedio por tema |
-| `GET /api/metricas/actividad` | Mapa de calor: interacciones por día de la semana × hora |
-| `GET /api/metricas/geografia` | Usuarios por estado y ciudad, **solo** con consentimiento |
+| `GET /api/metricas/resumen` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/estatus` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/plataformas` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/temas` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/actividad` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/geografia` | **Definido en v0.8**: ver abajo |
 | `GET /api/cuarentena` | Registros rechazados. Filtro: `motivo` |
 
 ### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
@@ -217,6 +218,23 @@ Un código con formato válido que no existe da `200` con `total: 0`. Los códig
 - `404` → `{"detail": "Usuario no encontrado"}`.
 - `422` → `id_usuario` no tiene el formato `U` + 6 a 9 dígitos (por ejemplo `U000001`).
 - `401` sin sesión, `503` si TiDB no responde.
+
+### `GET /api/metricas/*` (requiere sesión, ambos roles) · v0.8
+
+Fórmulas en `docs/INDICADORES.md`. Sin parámetros. `401` sin sesión; `503` → `{"detail": "Base de datos no disponible"}` si falta TiDB o Capella (el mismo mensaje para las dos).
+
+| Ruta | `200` |
+|---|---|
+| `resumen` | `{"usuarios", "usuarios_activos", "porcentaje_activos", "usuarios_con_consentimiento", "interacciones", "usuarios_que_interactuan", "sentimiento_promedio", "en_cuarentena", "generado_en"}` |
+| `estatus` | `{"total", "datos": [{"estatus", "usuarios", "porcentaje"}]}`, siempre `activo`, `en_riesgo`, `inactivo` en ese orden |
+| `plataformas` | `{"datos": [{"plataforma", "usuarios", "interacciones"}]}`, una fila por código del catálogo, incluso con 0 |
+| `temas` | `{"datos": [{"tema", "interacciones", "sentimiento_promedio"}]}`, una fila por código; `sentimiento_promedio` es `null` sin interacciones |
+| `actividad` | `{"zona_horaria": "UTC", "datos": [{"dia_semana", "hora", "interacciones"}]}`, 168 celdas; `dia_semana` 1 = lunes … 7 = domingo |
+| `geografia` | `{"minimo_por_grupo": 3, "usuarios_con_ubicacion", "estados": [{"pais", "estado", "usuarios"}], "ciudades": [{"pais", "estado", "ciudad", "usuarios"}]}` |
+
+`plataforma` y `tema` son códigos: el nombre sale de `GET /api/catalogos`. Las listas de `geografia` van de mayor a menor número de usuarios.
+
+**Privacidad en `geografia`:** solo cuenta usuarios con `consentimiento_datos = TRUE`; **no devuelve ningún estado ni ciudad con menos de 3 usuarios**; nunca trae coordenadas ni `id_usuario`.
 
 ---
 

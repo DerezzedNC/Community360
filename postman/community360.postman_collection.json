@@ -977,7 +977,261 @@
           "response": []
         },
         {
-          "name": "17. Logout (analista)",
+          "name": "17. Métricas: resumen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Campos del resumen', () => pm.expect(pm.response.json()).to.have.all.keys('usuarios', 'usuarios_activos', 'porcentaje_activos', 'usuarios_con_consentimiento', 'interacciones', 'usuarios_que_interactuan', 'sentimiento_promedio', 'en_cuarentena', 'generado_en'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/resumen",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "resumen"
+              ]
+            },
+            "description": "Totales e indicadores principales (docs/INDICADORES.md)."
+          },
+          "response": []
+        },
+        {
+          "name": "18. Métricas: estatus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Los tres estatus en orden', () => pm.expect(pm.response.json().datos.map(d => d.estatus)).to.eql(['activo', 'en_riesgo', 'inactivo']));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/estatus",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "estatus"
+              ]
+            },
+            "description": "Usuarios por estatus."
+          },
+          "response": []
+        },
+        {
+          "name": "19. Métricas: plataformas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cada fila con usuarios e interacciones', () => pm.response.json().datos.forEach(d => pm.expect(d).to.have.all.keys('plataforma', 'usuarios', 'interacciones')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/plataformas",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "plataformas"
+              ]
+            },
+            "description": "Usuarios (TiDB) e interacciones (Capella) por plataforma."
+          },
+          "response": []
+        },
+        {
+          "name": "20. Métricas: temas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cada fila con interacciones y sentimiento', () => pm.response.json().datos.forEach(d => pm.expect(d).to.have.all.keys('tema', 'interacciones', 'sentimiento_promedio')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/temas",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "temas"
+              ]
+            },
+            "description": "Interacciones y sentimiento promedio por tema."
+          },
+          "response": []
+        },
+        {
+          "name": "21. Métricas: actividad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('168 celdas en UTC', () => { const r = pm.response.json(); pm.expect(r.zona_horaria).to.eql('UTC'); pm.expect(r.datos).to.have.lengthOf(168); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/actividad",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "actividad"
+              ]
+            },
+            "description": "Mapa de calor día × hora, en UTC."
+          },
+          "response": []
+        },
+        {
+          "name": "22. Métricas: geografía",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Ningún grupo menor al mínimo', () => [...r.estados, ...r.ciudades].forEach(g => pm.expect(g.usuarios).to.be.at.least(r.minimo_por_grupo)));",
+                  "pm.test('Nunca hay coordenadas ni id_usuario', () => ['latitud', 'longitud', 'id_usuario'].forEach(p => pm.expect(pm.response.text()).to.not.include(p)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/metricas/geografia",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "metricas",
+                "geografia"
+              ]
+            },
+            "description": "Solo usuarios con consentimiento, por estado y ciudad. Oculta grupos de menos de 3. Sin coordenadas."
+          },
+          "response": []
+        },
+        {
+          "name": "23. Logout (analista)",
           "event": [
             {
               "listen": "test",

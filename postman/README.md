@@ -43,7 +43,8 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | 14. Usuarios filtrados | `200`, solo `en_riesgo` de `discord` |
 | 15. Usuario sin consentimiento | `200` con `ubicacion: null` |
 | 16. Límite fuera de rango | `422` |
-| 17. Logout (analista) | `204` |
+| 17 a 22. Métricas | `200` (resumen, estatus, plataformas, temas, actividad, geografía) |
+| 23. Logout (analista) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.

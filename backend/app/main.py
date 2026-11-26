@@ -6,13 +6,14 @@ import pymysql
 from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
+from couchbase.exceptions import CouchbaseException
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
-from app.db.capella import Capella
+from app.db.capella import Capella, CapellaNoDisponible
 from app.db.tidb import TiDB
 from app.dependencias import proteger
-from app.routers import auth, catalogos, health, usuarios
+from app.routers import auth, catalogos, health, metricas, usuarios
 from app.tokens import Tokens
 
 logger = logging.getLogger("community360")
@@ -39,6 +40,12 @@ async def error_tidb(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": "Base de datos no disponible"})
 
 
+async def error_capella(request: Request, exc: Exception) -> JSONResponse:
+    # Mismo mensaje que TiDB: al cliente no le importa cuál de las dos falló
+    logger.warning("Capella no responde (%s)", type(exc).__name__)
+    return JSONResponse(status_code=503, content={"detail": "Base de datos no disponible"})
+
+
 async def error_interno(request: Request, exc: Exception) -> JSONResponse:
     # Uvicorn registra la traza; al cliente no se le dan detalles
     return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
@@ -53,7 +60,7 @@ def create_app(
     settings = settings or get_settings()
     app = FastAPI(
         title="COMMUNITY 360",
-        version="0.7",
+        version="0.8",
         lifespan=ciclo_de_vida,
         # Protegido por defecto: las rutas públicas están en dependencias.py
         dependencies=[Depends(proteger)],
@@ -66,10 +73,13 @@ def create_app(
     app.add_exception_handler(RequestValidationError, error_validacion)
     app.add_exception_handler(pymysql.err.OperationalError, error_tidb)
     app.add_exception_handler(pymysql.err.InterfaceError, error_tidb)
+    app.add_exception_handler(CapellaNoDisponible, error_capella)
+    app.add_exception_handler(CouchbaseException, error_capella)
     app.add_exception_handler(Exception, error_interno)
 
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(catalogos.router)
     app.include_router(usuarios.router)
+    app.include_router(metricas.router)
     return app

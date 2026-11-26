@@ -1,0 +1,213 @@
+"""Indicadores del dashboard (contrato v0.8, definiciones en docs/INDICADORES.md). Solo lectura."""
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Request
+from pydantic import BaseModel
+
+from app.repositorios import metricas as m
+
+router = APIRouter(prefix="/api/metricas", tags=["métricas"])
+
+
+def porcentaje(parte: int, total: int) -> float:
+    return round(parte * 100 / total, 1) if total else 0.0
+
+
+def redondear(valor: float | None) -> float | None:
+    return None if valor is None else round(valor, 3)
+
+
+def ahora_utc() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# --- Resumen -------------------------------------------------------------------------
+
+
+class Resumen(BaseModel):
+    usuarios: int
+    usuarios_activos: int
+    porcentaje_activos: float
+    usuarios_con_consentimiento: int
+    interacciones: int
+    usuarios_que_interactuan: int
+    sentimiento_promedio: float | None
+    en_cuarentena: int
+    generado_en: str
+
+
+def calcular_resumen(tidb, capella) -> Resumen:
+    """También lo usará el WebSocket de la Fase 5."""
+    with tidb.conexion() as con:
+        t = m.resumen_tidb(con)
+    c = m.resumen_capella(capella)
+    return Resumen(
+        **t,
+        porcentaje_activos=porcentaje(t["usuarios_activos"], t["usuarios"]),
+        interacciones=c["interacciones"],
+        usuarios_que_interactuan=c["usuarios_que_interactuan"],
+        sentimiento_promedio=redondear(c["sentimiento_promedio"]),
+        en_cuarentena=c["en_cuarentena"],
+        generado_en=ahora_utc(),
+    )
+
+
+@router.get("/resumen")
+def resumen(request: Request) -> Resumen:
+    return calcular_resumen(request.app.state.tidb, request.app.state.capella)
+
+
+# --- Estatus -------------------------------------------------------------------------
+
+
+class FilaEstatus(BaseModel):
+    estatus: str
+    usuarios: int
+    porcentaje: float
+
+
+class Estatus(BaseModel):
+    total: int
+    datos: list[FilaEstatus]
+
+
+@router.get("/estatus")
+def estatus(request: Request) -> Estatus:
+    with request.app.state.tidb.conexion() as con:
+        conteo = m.usuarios_por_estatus(con)
+    total = sum(conteo.values())
+    datos = [
+        FilaEstatus(estatus=e, usuarios=conteo.get(e, 0), porcentaje=porcentaje(conteo.get(e, 0), total))
+        for e in m.ESTATUS
+    ]
+    return Estatus(total=total, datos=datos)
+
+
+# --- Plataformas ---------------------------------------------------------------------
+
+
+class FilaPlataforma(BaseModel):
+    plataforma: str
+    usuarios: int
+    interacciones: int
+
+
+class Plataformas(BaseModel):
+    datos: list[FilaPlataforma]
+
+
+@router.get("/plataformas")
+def plataformas(request: Request) -> Plataformas:
+    with request.app.state.tidb.conexion() as con:
+        usuarios = m.usuarios_por_plataforma(con)
+    interacciones = m.interacciones_por_canal(request.app.state.capella)
+    codigos = sorted(set(usuarios) | set(interacciones))
+    return Plataformas(datos=[
+        FilaPlataforma(plataforma=c, usuarios=usuarios.get(c, 0), interacciones=interacciones.get(c, 0))
+        for c in codigos
+    ])
+
+
+# --- Temas ---------------------------------------------------------------------------
+
+
+class FilaTema(BaseModel):
+    tema: str
+    interacciones: int
+    sentimiento_promedio: float | None
+
+
+class Temas(BaseModel):
+    datos: list[FilaTema]
+
+
+@router.get("/temas")
+def temas(request: Request) -> Temas:
+    with request.app.state.tidb.conexion() as con:
+        codigos = m.codigos_de_tema(con)
+    por_tema = m.interacciones_por_tema(request.app.state.capella)
+    datos = []
+    for codigo in sorted(set(codigos) | set(por_tema)):
+        fila = por_tema.get(codigo, {})
+        datos.append(FilaTema(
+            tema=codigo,
+            interacciones=fila.get("interacciones", 0),
+            sentimiento_promedio=redondear(fila.get("sentimiento_promedio")),
+        ))
+    return Temas(datos=datos)
+
+
+# --- Actividad -----------------------------------------------------------------------
+
+
+class Celda(BaseModel):
+    dia_semana: int  # 1 = lunes ... 7 = domingo
+    hora: int
+    interacciones: int
+
+
+class Actividad(BaseModel):
+    zona_horaria: str
+    datos: list[Celda]
+
+
+@router.get("/actividad")
+def actividad(request: Request) -> Actividad:
+    conteo = {(d, h): 0 for d in range(1, 8) for h in range(24)}
+    for marca in m.marcas_de_tiempo(request.app.state.capella):
+        try:
+            momento = datetime.strptime(marca, "%Y-%m-%dT%H:%M:%SZ")
+        except (TypeError, ValueError):
+            continue  # un documento sin timestamp válido no cuenta
+        conteo[(momento.isoweekday(), momento.hour)] += 1
+    return Actividad(
+        zona_horaria="UTC",
+        datos=[Celda(dia_semana=d, hora=h, interacciones=n) for (d, h), n in conteo.items()],
+    )
+
+
+# --- Geografía -----------------------------------------------------------------------
+
+
+class FilaEstado(BaseModel):
+    pais: str
+    estado: str
+    usuarios: int
+
+
+class FilaCiudad(FilaEstado):
+    ciudad: str
+
+
+class Geografia(BaseModel):
+    minimo_por_grupo: int
+    usuarios_con_ubicacion: int
+    estados: list[FilaEstado]
+    ciudades: list[FilaCiudad]
+
+
+def ocultar_grupos_chicos(ciudades: list[dict]) -> Geografia:
+    """Agrega por estado y quita los grupos con menos de MINIMO_POR_GRUPO usuarios."""
+    por_estado: dict[tuple[str, str], int] = {}
+    for c in ciudades:
+        clave = (c["pais"], c["estado"])
+        por_estado[clave] = por_estado.get(clave, 0) + c["usuarios"]
+    minimo = m.MINIMO_POR_GRUPO
+
+    def orden(fila):
+        return (-fila["usuarios"], fila["pais"], fila["estado"], fila.get("ciudad", ""))
+
+    estados = [{"pais": p, "estado": e, "usuarios": n} for (p, e), n in por_estado.items() if n >= minimo]
+    visibles = [c for c in ciudades if c["usuarios"] >= minimo]
+    return Geografia(
+        minimo_por_grupo=minimo,
+        usuarios_con_ubicacion=sum(c["usuarios"] for c in ciudades),
+        estados=sorted(estados, key=orden),
+        ciudades=sorted(visibles, key=orden),
+    )
+
+
+@router.get("/geografia")
+def geografia(request: Request) -> Geografia:
+    with request.app.state.tidb.conexion() as con:
+        return ocultar_grupos_chicos(m.usuarios_por_ciudad(con))
