@@ -74,3 +74,7 @@ No capturar:
 - La consola de Postman: muestra contraseñas y tokens.
 - La pestaña del entorno con valores visibles, ni el encabezado `Authorization` con el token visible.
 - La pestaña Cookies, porque trae `c360_token`.
+
+## WebSocket (Fase 5)
+
+La colección v2.1 no guarda peticiones WebSocket; se crea a mano en Postman: **New → WebSocket**, URL `ws://localhost:8000/ws/metricas`, pestaña *Headers* con `Authorization: Bearer {{c360_token}}` (después de un Login), y **Connect**. Llega el resumen. Con la conexión abierta, enviar 26, 29 o 30 de la carpeta CRUD: llega el resumen actualizado. Mandar `{"tipo": "ping"}` responde `{"evento": "pong"}`.

@@ -3,17 +3,18 @@ import logging
 from contextlib import asynccontextmanager
 
 import pymysql
+from couchbase.exceptions import CouchbaseException
 from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
-from couchbase.exceptions import CouchbaseException
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
 from app.db.capella import Capella, CapellaNoDisponible
 from app.db.tidb import TiDB
 from app.dependencias import proteger
-from app.routers import auth, catalogos, cuarentena, health, interacciones, metricas, usuarios
+from app.difusor import Difusor
+from app.routers import auth, catalogos, cuarentena, health, interacciones, metricas, usuarios, ws
 from app.tokens import Tokens
 
 logger = logging.getLogger("community360")
@@ -60,7 +61,7 @@ def create_app(
     settings = settings or get_settings()
     app = FastAPI(
         title="COMMUNITY 360",
-        version="0.10",
+        version="0.11",
         lifespan=ciclo_de_vida,
         # Protegido por defecto: las rutas públicas están en dependencias.py
         dependencies=[Depends(proteger)],
@@ -69,6 +70,9 @@ def create_app(
     app.state.tidb = tidb or TiDB(settings)
     app.state.capella = capella or Capella(settings)
     app.state.tokens = Tokens(settings)
+    app.state.difusor = Difusor(app)
+    # El CRUD lo llama después de cada escritura (routers/interacciones.py)
+    app.state.avisar_cambio = app.state.difusor.avisar
 
     app.add_exception_handler(RequestValidationError, error_validacion)
     app.add_exception_handler(pymysql.err.OperationalError, error_tidb)
@@ -84,4 +88,5 @@ def create_app(
     app.include_router(metricas.router)
     app.include_router(cuarentena.router)
     app.include_router(interacciones.router)
+    app.include_router(ws.router)
     return app

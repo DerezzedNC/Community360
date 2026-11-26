@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.10** (Fases 3 y 4 definidas: autenticación, consultas, métricas, cuarentena y CRUD de interacciones; la Fase 5 es propuesta).
+**Versión 0.11** (Fases 3, 4 y 5 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones y WebSocket).
 
 | Versión | Cambio |
 |---|---|
+| 0.11 | WebSocket `/ws/metricas`: resumen al conectarse y después de cada cambio del CRUD; cierres `4401` y `4403` (F5-01) |
 | 0.10 | CRUD de interacciones definido: cuerpo cerrado (otro campo → `422`), borrado físico, formato de `404`, `409` y `422` (F4-01) |
 | 0.9 | `GET /api/cuarentena` definido: paginado, filtro `motivo`, `registro` sin geografía (F4-02f) |
 | 0.8 | `GET /api/metricas/*` definidos; geografía oculta grupos de menos de 3 usuarios; `503` también si Capella no responde (F4-02c, d y e) |
@@ -267,17 +268,23 @@ Filtro opcional `motivo`: `duplicado`, `tipo_dato_invalido`, `categoria_invalida
 
 ---
 
-## Fase 5 · WebSocket (propuesta)
+## Fase 5 · WebSocket · v0.11
 
-Ruta: `ws://localhost:5173/ws` en el dashboard (proxy) o `ws://localhost:8000/ws` directo. Autenticación con la cookie `c360_token` o con `?token=<jwt>`. Sin sesión válida el servidor cierra con el código `4401`.
+Ruta: `ws://localhost:5173/ws/metricas` en el dashboard (proxy de Vite) o `ws://localhost:8000/ws/metricas` directo.
 
-Mensajes del servidor al cliente:
+- **Sesión:** la misma de las rutas HTTP, la cookie `c360_token` o el encabezado `Authorization: Bearer` (Postman). No se acepta el token en la URL. Sin sesión válida, el servidor cierra con `4401`. Ambos roles.
+- **Origen:** si el cliente manda `Origin` (un navegador siempre lo hace), debe ser `http://localhost:5173`; si no, cierra con `4403`.
+- **Al conectarse** el servidor manda el resumen. **Después de cada `POST`, `PUT` o `DELETE` exitoso** de interacciones, lo vuelve a mandar a todos los conectados. No consulta las bases por su cuenta: sin cambios no hay mensajes.
+- Si la sesión vence o se cierra con logout, la conexión se cierra con `4401` en el siguiente envío.
+
+Mensajes del servidor:
 ```json
-{ "evento": "interaccion.creada",      "datos": { "id_interaccion": "I0002001", "...": "..." }, "ts": "2026-11-24T20:15:00Z" }
-{ "evento": "interaccion.actualizada", "datos": { "id_interaccion": "I0002001", "...": "..." }, "ts": "..." }
-{ "evento": "interaccion.eliminada",   "datos": { "id_interaccion": "I0002001" }, "ts": "..." }
-{ "evento": "metricas.actualizadas",   "datos": { "...": "mismo formato que GET /api/metricas/resumen" }, "ts": "..." }
+{ "evento": "metricas.actualizadas",  "datos": { "...": "mismo formato que GET /api/metricas/resumen" }, "ts": "2026-11-25T20:15:00Z" }
+{ "evento": "metricas.no_disponibles", "datos": { "detail": "Base de datos no disponible" }, "ts": "..." }
+{ "evento": "pong" }
 ```
-Cada `POST`, `PUT` o `DELETE` exitoso envía primero el evento de la interacción y luego `metricas.actualizadas`.
+`metricas.no_disponibles` llega si TiDB o Capella no responden al calcular el resumen; la conexión sigue abierta.
 
-Mensajes del cliente al servidor: `{"tipo": "ping"}` → el servidor contesta `{"evento": "pong"}`.
+Mensaje del cliente: `{"tipo": "ping"}` → `{"evento": "pong"}`. Cualquier otro mensaje se ignora.
+
+Los eventos por interacción (`interaccion.creada`, etc.) de la propuesta anterior no se implementan: el dashboard solo necesita el resumen. Para refrescar otras gráficas, el dashboard puede volver a pedir `GET /api/metricas/*` al recibir `metricas.actualizadas`.
