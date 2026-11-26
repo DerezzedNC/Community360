@@ -62,6 +62,23 @@ def usuarios_por_ciudad(con: Connection) -> list[dict]:
     return [{**f, "usuarios": int(f["usuarios"])} for f in _filas(con, SQL_GEOGRAFIA)]
 
 
+# Puntos calientes: cuadros de 0.2° (unos 22 km). TiDB agrupa y solo devuelve el número de
+# cuadro y cuántos usuarios hay en él: las coordenadas de cada usuario nunca salen de la base.
+TAMANO_CUADRO = "0.2"  # texto, para que TiDB calcule con DECIMAL exacto
+SQL_PUNTOS_CALIENTES = (
+    f"SELECT FLOOR(uu.latitud / {TAMANO_CUADRO}) AS cuadro_lat, "
+    f"FLOOR(uu.longitud / {TAMANO_CUADRO}) AS cuadro_lon, COUNT(*) AS usuarios "
+    "FROM usuario u "
+    "JOIN ubicacion_usuario uu ON uu.id_usuario = u.id_usuario AND u.consentimiento_datos = TRUE "
+    "WHERE uu.latitud IS NOT NULL AND uu.longitud IS NOT NULL "
+    "GROUP BY cuadro_lat, cuadro_lon"
+)
+
+
+def usuarios_por_cuadro(con: Connection) -> list[dict]:
+    return [{k: int(v) for k, v in f.items()} for f in _filas(con, SQL_PUNTOS_CALIENTES)]
+
+
 # --- Capella -------------------------------------------------------------------------
 
 

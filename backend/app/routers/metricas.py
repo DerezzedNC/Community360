@@ -1,5 +1,6 @@
 """Indicadores del dashboard (contrato v0.8, definiciones en docs/INDICADORES.md). Solo lectura."""
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -211,3 +212,47 @@ def ocultar_grupos_chicos(ciudades: list[dict]) -> Geografia:
 def geografia(request: Request) -> Geografia:
     with request.app.state.tidb.conexion() as con:
         return ocultar_grupos_chicos(m.usuarios_por_ciudad(con))
+
+
+# --- Puntos calientes ----------------------------------------------------------------
+
+
+class Cuadro(BaseModel):
+    latitud_centro: float
+    longitud_centro: float
+    usuarios: int
+
+
+class PuntosCalientes(BaseModel):
+    tamano_cuadro: float
+    minimo_por_cuadro: int
+    usuarios_con_coordenadas: int
+    usuarios_en_mapa: int
+    datos: list[Cuadro]
+
+
+def centro(cuadro: int) -> float:
+    """Centro del cuadro número `cuadro`: va de cuadro×0.2 a (cuadro+1)×0.2."""
+    paso = Decimal(m.TAMANO_CUADRO)
+    return float(cuadro * paso + paso / 2)
+
+
+def armar_mapa(cuadros: list[dict]) -> PuntosCalientes:
+    """Quita los cuadros con menos de MINIMO_POR_GRUPO usuarios y devuelve solo su centro."""
+    minimo = m.MINIMO_POR_GRUPO
+    visibles = [c for c in cuadros if c["usuarios"] >= minimo]
+    visibles.sort(key=lambda c: (-c["usuarios"], c["cuadro_lat"], c["cuadro_lon"]))
+    return PuntosCalientes(
+        tamano_cuadro=float(m.TAMANO_CUADRO),
+        minimo_por_cuadro=minimo,
+        usuarios_con_coordenadas=sum(c["usuarios"] for c in cuadros),
+        usuarios_en_mapa=sum(c["usuarios"] for c in visibles),
+        datos=[Cuadro(latitud_centro=centro(c["cuadro_lat"]), longitud_centro=centro(c["cuadro_lon"]),
+                      usuarios=c["usuarios"]) for c in visibles],
+    )
+
+
+@router.get("/puntos-calientes")
+def puntos_calientes(request: Request) -> PuntosCalientes:
+    with request.app.state.tidb.conexion() as con:
+        return armar_mapa(m.usuarios_por_cuadro(con))

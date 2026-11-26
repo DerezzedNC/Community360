@@ -41,6 +41,22 @@ Mapa de calor: interacciones por `dia_semana` (1 = lunes … 7 = domingo) y `hor
 - **Oculta todo grupo con menos de 3 usuarios** (`minimo_por_grupo`), para que nadie pueda ser identificado por vivir en un lugar con 1 o 2 personas.
 - `usuarios_con_ubicacion` es el total de usuarios contados, incluidos los de grupos ocultos.
 
+## `GET /api/metricas/puntos-calientes` (TiDB) · privacidad
+
+Mapa de calor geográfico. **Cuadrícula de 0.2°** (unos 22 km de lado en Yucatán): con 0.1° se ocultaban 38 de 114 cuadros (56 usuarios fuera del mapa); con 0.2° se ocultan 9 de 61 (13 usuarios) y sigue sin señalar una colonia ni una calle.
+
+| Dato | Fórmula |
+|---|---|
+| número de cuadro | `k_lat = FLOOR(latitud / 0.2)`, `k_lon = FLOOR(longitud / 0.2)`, calculado en TiDB |
+| `latitud_centro`, `longitud_centro` | `k × 0.2 + 0.1` (centro del cuadro, 1 decimal) |
+| `usuarios` | usuarios con `consentimiento_datos = TRUE` y coordenadas en ese cuadro |
+| `usuarios_con_coordenadas` | suma de todos los cuadros, incluidos los ocultos |
+| `usuarios_en_mapa` | suma de los cuadros visibles |
+
+- TiDB agrupa y devuelve solo `k_lat`, `k_lon` y el conteo: las coordenadas de cada usuario no salen de la base.
+- **Oculta todo cuadro con menos de 3 usuarios** (`minimo_por_cuadro`), igual que `geografia`.
+- Nunca devuelve `id_usuario` ni una coordenada sin llevar al centro de su cuadro.
+
 ## Cómo cambian con altas, cambios y bajas
 
 El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `request_plus`, así que cada cambio se ve en la siguiente petición. Después de cada alta, cambio o baja exitosa, `/ws/metricas` manda el resumen nuevo; el dashboard vuelve a pedir las demás métricas.
@@ -53,7 +69,7 @@ El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `reque
 | `plataformas.interacciones` | +1 en su `canal` | pasa de un canal a otro si cambia | −1 en su `canal` |
 | `temas.interacciones` | +1 en su `tema` | pasa de un tema a otro si cambia | −1 en su `tema` |
 | `actividad` | +1 en la celda de su `timestamp` | cambia de celda si cambia `timestamp` | −1 en su celda |
-| `usuarios`, `usuarios_activos`, `porcentaje_activos`, `usuarios_con_consentimiento`, `estatus`, `geografia` | no cambian | no cambian | no cambian |
+| `usuarios`, `usuarios_activos`, `porcentaje_activos`, `usuarios_con_consentimiento`, `estatus`, `geografia`, `puntos-calientes` | no cambian | no cambian | no cambian |
 | `en_cuarentena` | no cambia: un dato inválido da `422` y no se guarda | no cambia | no cambia |
 
 `estatus` y `ultima_actividad` de TiDB los calculó el ETL. Una interacción creada desde la API no los recalcula.

@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.11** (Fases 3, 4 y 5 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones y WebSocket).
+**Versión 0.12** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
 
 | Versión | Cambio |
 |---|---|
+| 0.12 | `GET /api/metricas/puntos-calientes`: mapa de calor en cuadros de 0.2°, solo el centro de cada cuadro y sin cuadros de menos de 3; excepción a la regla de coordenadas (F6-03) |
 | 0.11 | WebSocket `/ws/metricas`: resumen al conectarse y después de cada cambio del CRUD; cierres `4401` y `4403` (F5-01) |
 | 0.10 | CRUD de interacciones definido: cuerpo cerrado (otro campo → `422`), borrado físico, formato de `404`, `409` y `422` (F4-01) |
 | 0.9 | `GET /api/cuarentena` definido: paginado, filtro `motivo`, `registro` sin geografía (F4-02f) |
@@ -32,7 +33,8 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 ### Privacidad (todas las rutas)
 
 - Un usuario con `consentimiento_datos = FALSE` **nunca** tiene ubicación en una respuesta: `ubicacion` es `null`, aunque existiera una fila suya en `ubicacion_usuario`. Ninguna ruta permite filtrar ni ordenar por ubicación.
-- **La API nunca devuelve coordenadas** (`latitud`, `longitud`), ni siquiera de usuarios con consentimiento. La ubicación llega como máximo hasta ciudad.
+- **La API nunca devuelve coordenadas de un usuario** (`latitud`, `longitud`), ni siquiera con consentimiento. La ubicación de un usuario llega como máximo hasta ciudad.
+- Única excepción, agregada: `GET /api/metricas/puntos-calientes` devuelve el **centro de cuadros de 0.2°** (unos 22 km) con el número de usuarios con consentimiento que hay en cada uno. Nunca la coordenada de un usuario ni `id_usuario`, y **ningún cuadro con menos de 3 usuarios**. Los cuadros se calculan dentro de TiDB: las coordenadas sueltas no llegan ni a la API.
 
 ### Autenticación en cada petición
 
@@ -152,6 +154,7 @@ Detalle v0.10:
 | `GET /api/metricas/temas` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/actividad` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/geografia` | **Definido en v0.8**: ver abajo |
+| `GET /api/metricas/puntos-calientes` | **Definido en v0.12**: ver abajo |
 | `GET /api/cuarentena` | **Definido en v0.9**: ver abajo |
 
 ### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
@@ -246,6 +249,23 @@ Fórmulas en `docs/INDICADORES.md`. Sin parámetros. `401` sin sesión; `503` �
 `plataforma` y `tema` son códigos: el nombre sale de `GET /api/catalogos`. Las listas de `geografia` van de mayor a menor número de usuarios.
 
 **Privacidad en `geografia`:** solo cuenta usuarios con `consentimiento_datos = TRUE`; **no devuelve ningún estado ni ciudad con menos de 3 usuarios**; nunca trae coordenadas ni `id_usuario`.
+
+### `GET /api/metricas/puntos-calientes` (requiere sesión, ambos roles) · v0.12
+
+Mapa de calor geográfico de usuarios con consentimiento (TiDB). Sin parámetros.
+
+```json
+{
+  "tamano_cuadro": 0.2, "minimo_por_cuadro": 3,
+  "usuarios_con_coordenadas": 793, "usuarios_en_mapa": 780,
+  "datos": [ { "latitud_centro": 20.9, "longitud_centro": -89.7, "usuarios": 41 } ]
+}
+```
+
+- Cada cuadro va de `k × 0.2` a `(k + 1) × 0.2` grados en latitud y en longitud; se devuelve solo su centro (`k × 0.2 + 0.1`), con 1 decimal.
+- **Privacidad:** solo usuarios con `consentimiento_datos = TRUE` y coordenadas en `ubicacion_usuario`. Ningún cuadro con menos de 3 usuarios. Nunca coordenadas de un usuario ni `id_usuario`.
+- `usuarios_con_coordenadas` cuenta también a los de cuadros ocultos; `usuarios_en_mapa`, solo a los visibles. `datos` va de mayor a menor número de usuarios.
+- `401` sin sesión, `503` si TiDB no responde.
 
 ### `GET /api/cuarentena` (requiere sesión, ambos roles) · v0.9
 

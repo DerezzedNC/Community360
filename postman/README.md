@@ -54,6 +54,10 @@ Con la API levantada (`backend/README.md`), enviar en orden o con *Run collectio
 | 29. Editar interacción | `200` |
 | 30. Borrar interacción | `204` |
 | 31. Logout (admin) | `204` |
+| **Fase 6 · Métricas adicionales** | |
+| 32. Login analista | `200` |
+| 33. Métricas: puntos calientes | `200`, cuadros de 3 o más, solo centros de la cuadrícula |
+| 34. Logout (analista) | `204` |
 
 - **3 y 7 llevan las cookies desactivadas** (Settings de la petición). Postman guarda la cookie del login y la reenvía sola; con ella, "Sin token" daría `200`.
 - **7 necesita 4 y 6 antes**, con la API sin reiniciar: los tokens revocados viven en memoria. Comprueba que el token no haya vencido, para demostrar que el `401` es por el logout.

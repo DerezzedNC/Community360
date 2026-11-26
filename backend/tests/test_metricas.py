@@ -11,7 +11,7 @@ from app.main import create_app
 from app.repositorios import metricas
 from tests.conftest import BaseFalsa
 
-RUTAS = ["resumen", "estatus", "plataformas", "temas", "actividad", "geografia"]
+RUTAS = ["resumen", "estatus", "plataformas", "temas", "actividad", "geografia", "puntos-calientes"]
 
 # fragmento de la consulta -> filas que devuelve
 TIDB = {
@@ -19,10 +19,16 @@ TIDB = {
     "GROUP BY estatus": [{"estatus": "activo", "usuarios": 4}, {"estatus": "inactivo", "usuarios": 6}],
     "FROM plataforma p": [{"codigo": "discord", "usuarios": 6}, {"codigo": "tiktok", "usuarios": 0}],
     "SELECT codigo FROM tema": [{"codigo": "musica"}, {"codigo": "memes_humor"}],
-    "FROM usuario u JOIN ubicacion_usuario": [
+    "c.nombre AS ciudad": [
         {"pais": "México", "estado": "Yucatán", "ciudad": "Mérida", "usuarios": 5},
         {"pais": "México", "estado": "Yucatán", "ciudad": "Valladolid", "usuarios": 2},  # se oculta
         {"pais": "Chile", "estado": "Santiago", "ciudad": "Santiago", "usuarios": 1},    # se oculta
+    ],
+    "AS cuadro_lat": [
+        {"cuadro_lat": 104, "cuadro_lon": -449, "usuarios": 9},  # Mérida: 20.8 a 21.0, -89.8 a -89.6
+        {"cuadro_lat": 97, "cuadro_lon": -497, "usuarios": 3},
+        {"cuadro_lat": 98, "cuadro_lon": -497, "usuarios": 2},   # se oculta
+        {"cuadro_lat": 0, "cuadro_lon": 0, "usuarios": 1},       # se oculta
     ],
 }
 CAPELLA = {
@@ -158,7 +164,37 @@ def test_sin_sesion_401(cliente, ruta):
     assert cliente.get(f"/api/metricas/{ruta}").status_code == 401
 
 
-@pytest.mark.parametrize("ruta", ["resumen", "estatus", "plataformas", "temas", "geografia"])
+def en_cuadricula(valor: float) -> bool:
+    """El centro de un cuadro de 0.2° siempre es k×0.2 + 0.1: en décimas, un número impar."""
+    decimas = valor * 10
+    return abs(decimas - round(decimas)) < 1e-9 and round(decimas) % 2 != 0
+
+
+def test_puntos_calientes_solo_centros_y_cuadros_de_3_o_mas(cliente):
+    r = pedir(cliente, "puntos-calientes")
+    assert r == {
+        "tamano_cuadro": 0.2, "minimo_por_cuadro": 3,
+        "usuarios_con_coordenadas": 15, "usuarios_en_mapa": 12,
+        "datos": [
+            {"latitud_centro": 20.9, "longitud_centro": -89.7, "usuarios": 9},
+            {"latitud_centro": 19.5, "longitud_centro": -99.3, "usuarios": 3},
+        ],
+    }
+    assert all(c["usuarios"] >= 3 for c in r["datos"])
+    assert all(en_cuadricula(c["latitud_centro"]) and en_cuadricula(c["longitud_centro"]) for c in r["datos"])
+
+
+def test_puntos_calientes_agrupa_en_tidb_solo_con_consentimiento():
+    sql = metricas.SQL_PUNTOS_CALIENTES
+    assert "JOIN ubicacion_usuario uu ON uu.id_usuario = u.id_usuario AND u.consentimiento_datos = TRUE" in sql
+    assert "GROUP BY cuadro_lat, cuadro_lon" in sql
+    # En lo que se devuelve, las coordenadas solo aparecen dentro de FLOOR(): nunca tal cual
+    columnas = sql.split(" FROM ")[0]
+    sin_floor = re.sub(r"FLOOR\(uu\.(latitud|longitud) / 0\.2\)", "", columnas)
+    assert not re.search(r"\b(latitud|longitud|id_usuario)\b", sin_floor)
+
+
+@pytest.mark.parametrize("ruta", ["resumen", "estatus", "plataformas", "temas", "geografia", "puntos-calientes"])
 def test_tidb_caida_503(cliente, tidb, ruta):
     tidb.falla = pymysql.err.OperationalError(2003, "detalle privado")
     r = cliente.get(f"/api/metricas/{ruta}")
@@ -187,3 +223,8 @@ def test_metricas_con_bases_reales():
     geo = r["geografia"].json()
     assert all(g["usuarios"] >= 3 for g in geo["estados"] + geo["ciudades"])
     assert "latitud" not in r["geografia"].text and "longitud" not in r["geografia"].text
+    mapa = r["puntos-calientes"].json()
+    assert mapa["datos"] and all(c["usuarios"] >= 3 for c in mapa["datos"])
+    assert all(en_cuadricula(c["latitud_centro"]) and en_cuadricula(c["longitud_centro"]) for c in mapa["datos"])
+    assert set(mapa["datos"][0]) == {"latitud_centro", "longitud_centro", "usuarios"}
+    assert mapa["usuarios_en_mapa"] == sum(c["usuarios"] for c in mapa["datos"])
