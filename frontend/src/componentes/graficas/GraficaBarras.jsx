@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import LienzoEcharts from './LienzoEcharts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import LienzoEcharts, { compararSeries, fotografiarSeries } from './LienzoEcharts';
 import { escaparHtml, tooltipBase, useTemaGraficas } from './temaGraficas';
 
 function formatearNumero(valor, decimales) {
@@ -25,14 +25,25 @@ export default function GraficaBarras({
   alReintentar,
   etiquetaAria = 'Gráfica de barras',
   tabla = null,
+  fuente = '',
 }) {
   const tema = useTemaGraficas();
+  const anteriorRef = useRef(null);
+  const [resaltar, setResaltar] = useState(null);
   const tieneCategorias = Array.isArray(categorias) && categorias.length > 0;
   const tieneSeries =
     Array.isArray(series) &&
     series.length > 0 &&
     series.some((serie) => Array.isArray(serie?.datos) && serie.datos.length > 0);
   const sinDatos = !tieneCategorias || !tieneSeries;
+
+  // Qué barras cambiaron respecto a los datos anteriores (para iluminarlas 1.5 s)
+  useEffect(() => {
+    if (sinDatos) return;
+    const cambios = compararSeries(anteriorRef.current, categorias, series);
+    anteriorRef.current = fotografiarSeries(categorias, series);
+    if (cambios && cambios.length > 0) setResaltar(cambios);
+  }, [categorias, series, sinDatos]);
 
   const opcion = useMemo(() => {
     if (sinDatos) {
@@ -110,7 +121,20 @@ export default function GraficaBarras({
       series: series.map((serie) => ({
         name: serie.nombre || '',
         type: 'bar',
-        data: serie.datos || [],
+        // Color por categoría (fijo por código del catálogo) si la serie lo trae
+        data: (serie.datos || []).map((valor, i) =>
+          Array.isArray(serie.colores)
+            ? { value: valor, itemStyle: { color: serie.colores[i], opacity: serie.opacidad ?? 1 } }
+            : valor
+        ),
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 18,
+            shadowColor: tema.oscuro ? 'rgba(255,255,255,0.5)' : 'rgba(0,113,227,0.55)',
+            borderColor: tema.texto,
+            borderWidth: 1,
+          },
+        },
         barMaxWidth: 28,
         barGap: '20%',
         // El dato clave se ve sin pasar el mouse
@@ -143,6 +167,8 @@ export default function GraficaBarras({
       etiquetaAria={etiquetaAria}
       forma="barras"
       tabla={tabla}
+      fuente={fuente}
+      resaltar={resaltar}
     />
   );
 }

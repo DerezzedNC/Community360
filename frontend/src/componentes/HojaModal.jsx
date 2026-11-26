@@ -5,7 +5,8 @@ const ENFOCABLES =
 
 // Hoja modal (HIG): una a la vez, botón "Cerrar", se cierra con Esc, el foco queda dentro
 // mientras está abierta y regresa al botón que la abrió.
-export default function HojaModal({ idTitulo, titulo, antetitulo = '', alCerrar, children }) {
+// lateral: entra desde la derecha (en móvil, desde abajo), §8.6
+export default function HojaModal({ idTitulo, titulo, antetitulo = '', alCerrar, lateral = false, children }) {
   const hojaRef = useRef(null);
   const alCerrarRef = useRef(alCerrar);
   alCerrarRef.current = alCerrar;
@@ -52,12 +53,12 @@ export default function HojaModal({ idTitulo, titulo, antetitulo = '', alCerrar,
 
   return (
     <div
-      className="hoja-fondo"
+      className={`hoja-fondo ${lateral ? 'hoja-fondo--lateral' : ''}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) alCerrar();
       }}
     >
-      <div ref={hojaRef} className="hoja" role="dialog" aria-modal="true" aria-labelledby={idTitulo}>
+      <div ref={hojaRef} className={`hoja ${lateral ? 'hoja--lateral' : ''}`} role="dialog" aria-modal="true" aria-labelledby={idTitulo}>
         <header className="hoja__encabezado">
           <div>
             {antetitulo && <p className="hoja__antetitulo">{antetitulo}</p>}

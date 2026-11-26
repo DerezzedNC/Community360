@@ -60,25 +60,32 @@ export function ErrorGrafica({ error, alReintentar, altura }) {
   );
 }
 
-// Alternativa accesible: la misma información en una tabla (divulgación progresiva)
-export function TablaDatos({ tabla }) {
+// Alternativa accesible: la misma información en una tabla (divulgación progresiva).
+// El pie lleva la ruta de la API como evidencia, en una línea pequeña (§8.3).
+export function TablaDatos({ tabla, fuente = '' }) {
   const [abierta, setAbierta] = useState(false);
   const id = useId();
-  if (!tabla || !Array.isArray(tabla.filas) || tabla.filas.length === 0) {
+  const hayTabla = tabla && Array.isArray(tabla.filas) && tabla.filas.length > 0;
+  if (!hayTabla && !fuente) {
     return null;
   }
   return (
     <div className="ver-datos">
-      <button
-        type="button"
-        className="boton boton--secundario boton--chico"
-        aria-expanded={abierta}
-        aria-controls={id}
-        onClick={() => setAbierta((previo) => !previo)}
-      >
-        {abierta ? 'Ocultar datos' : 'Ver datos'}
-      </button>
-      {abierta && (
+      <div className="ver-datos__pie">
+        {hayTabla && (
+          <button
+            type="button"
+            className="boton boton--secundario boton--chico"
+            aria-expanded={abierta}
+            aria-controls={id}
+            onClick={() => setAbierta((previo) => !previo)}
+          >
+            {abierta ? 'Ocultar datos' : 'Ver datos'}
+          </button>
+        )}
+        {fuente && <code className="ver-datos__fuente">{fuente}</code>}
+      </div>
+      {hayTabla && abierta && (
         <div id={id} className="contenedor-tabla ver-datos__tabla">
           <table className="tabla-datos tabla-datos--compacta">
             <caption className="sr-only">{tabla.titulo}</caption>
@@ -120,14 +127,39 @@ export default function LienzoEcharts({
   etiquetaAria = 'Gráfica',
   forma = 'barras',
   tabla = null,
+  fuente = '',
+  resaltar = null, // [{ seriesIndex, dataIndex }] que cambiaron en la última actualización
 }) {
   const contenedorRef = useRef(null);
   const instanciaRef = useRef(null);
+  // La gráfica se crea al entrar en pantalla: así su animación de dibujo se ve (§8.3)
+  const [enPantalla, setEnPantalla] = useState(false);
 
   const mostrarGrafica = !cargando && !error && !sinDatos && Boolean(opcion);
 
   useEffect(() => {
-    if (!mostrarGrafica || !contenedorRef.current) {
+    if (!mostrarGrafica || enPantalla || !contenedorRef.current) {
+      return undefined;
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      setEnPantalla(true);
+      return undefined;
+    }
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((e) => e.isIntersecting)) {
+          setEnPantalla(true);
+          observador.disconnect();
+        }
+      },
+      { rootMargin: '0px 0px -10% 0px' }
+    );
+    observador.observe(contenedorRef.current);
+    return () => observador.disconnect();
+  }, [enPantalla, mostrarGrafica]);
+
+  useEffect(() => {
+    if (!mostrarGrafica || !enPantalla || !contenedorRef.current) {
       return undefined;
     }
 
@@ -145,14 +177,31 @@ export default function LienzoEcharts({
       instancia.dispose();
       instanciaRef.current = null;
     };
-  }, [mostrarGrafica]);
+  }, [enPantalla, mostrarGrafica]);
 
   useEffect(() => {
-    if (mostrarGrafica && instanciaRef.current && opcion) {
+    if (mostrarGrafica && enPantalla && instanciaRef.current && opcion) {
       // Sin reemplazar todo: ECharts anima la transición cuando llegan datos nuevos
       instanciaRef.current.setOption(opcion, { notMerge: false, replaceMerge: ['series', 'xAxis', 'yAxis'] });
     }
-  }, [mostrarGrafica, opcion]);
+  }, [enPantalla, mostrarGrafica, opcion]);
+
+  // Resaltado del cambio: lo que cambió se ilumina 1.5 s (comparando datos anterior y nuevo)
+  useEffect(() => {
+    const instancia = instanciaRef.current;
+    if (!instancia || !Array.isArray(resaltar) || resaltar.length === 0) {
+      return undefined;
+    }
+    const porSerie = new Map();
+    for (const { seriesIndex, dataIndex } of resaltar) {
+      porSerie.set(seriesIndex, [...(porSerie.get(seriesIndex) || []), dataIndex]);
+    }
+    porSerie.forEach((indices, seriesIndex) => instancia.dispatchAction({ type: 'highlight', seriesIndex, dataIndex: indices }));
+    const temporizador = window.setTimeout(() => {
+      porSerie.forEach((indices, seriesIndex) => instancia.dispatchAction({ type: 'downplay', seriesIndex, dataIndex: indices }));
+    }, 1500);
+    return () => window.clearTimeout(temporizador);
+  }, [resaltar]);
 
   if (cargando) {
     return <EsqueletoGrafica forma={forma} altura={altura} />;
@@ -164,9 +213,12 @@ export default function LienzoEcharts({
 
   if (sinDatos) {
     return (
-      <div className="estado-grafica" style={{ minHeight: altura }} role="status">
-        <p className="estado-grafica__texto">{textoSinDatos}</p>
-      </div>
+      <>
+        <div className="estado-grafica" style={{ minHeight: altura }} role="status">
+          <p className="estado-grafica__texto">{textoSinDatos}</p>
+        </div>
+        <TablaDatos tabla={null} fuente={fuente} />
+      </>
     );
   }
 
@@ -179,7 +231,28 @@ export default function LienzoEcharts({
         role="img"
         aria-label={etiquetaAria}
       />
-      <TablaDatos tabla={tabla} />
+      <TablaDatos tabla={tabla} fuente={fuente} />
     </>
   );
+}
+
+// Compara las series anterior y nueva por nombre de categoría y devuelve lo que cambió
+export function compararSeries(anterior, categorias, series) {
+  if (!anterior) return null;
+  const cambios = [];
+  series.forEach((serie, seriesIndex) => {
+    const previo = anterior.get(serie.nombre);
+    if (!previo) return;
+    (serie.datos || []).forEach((valor, dataIndex) => {
+      const nombre = categorias[dataIndex];
+      if (previo.has(nombre) && Number(previo.get(nombre)) !== Number(valor)) {
+        cambios.push({ seriesIndex, dataIndex });
+      }
+    });
+  });
+  return cambios;
+}
+
+export function fotografiarSeries(categorias, series) {
+  return new Map(series.map((serie) => [serie.nombre, new Map((serie.datos || []).map((v, i) => [categorias[i], v]))]));
 }

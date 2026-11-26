@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import LienzoEcharts from './LienzoEcharts';
 import { escaparHtml, tooltipBase, useTemaGraficas } from './temaGraficas';
 
@@ -15,12 +15,32 @@ export default function GraficaMapaCalor({
   alReintentar,
   etiquetaAria = 'Mapa de calor',
   tabla = null,
+  fuente = '',
+  gama = null, // colores de menos a más; por omisión, la gama azul
 }) {
   const tema = useTemaGraficas();
+  const anteriorRef = useRef(null);
+  const [resaltar, setResaltar] = useState(null);
   const tieneHorizontal = Array.isArray(etiquetasHorizontal) && etiquetasHorizontal.length > 0;
   const tieneVertical = Array.isArray(etiquetasVertical) && etiquetasVertical.length > 0;
   const tieneCeldas = Array.isArray(celdas) && celdas.length > 0;
   const sinDatos = !tieneHorizontal || !tieneVertical || !tieneCeldas;
+
+  // Celdas cuyo valor cambió respecto a los datos anteriores (se iluminan 1.5 s)
+  useEffect(() => {
+    if (sinDatos) return;
+    const clave = (celda) => `${etiquetasHorizontal[celda[0]]}|${etiquetasVertical[celda[1]]}`;
+    const actual = new Map(celdas.map((celda) => [clave(celda), Number(celda[2])]));
+    const anterior = anteriorRef.current;
+    anteriorRef.current = actual;
+    if (!anterior) return;
+    const cambios = [];
+    celdas.forEach((celda, dataIndex) => {
+      const k = clave(celda);
+      if (anterior.has(k) && anterior.get(k) !== Number(celda[2])) cambios.push({ seriesIndex: 0, dataIndex });
+    });
+    if (cambios.length > 0) setResaltar(cambios);
+  }, [celdas, etiquetasHorizontal, etiquetasVertical, sinDatos]);
 
   const opcion = useMemo(() => {
     if (sinDatos) {
@@ -32,6 +52,27 @@ export default function GraficaMapaCalor({
       const valor = Array.isArray(celda) ? Number(celda[2]) : NaN;
       if (Number.isFinite(valor) && valor > maximo) maximo = valor;
     }
+    // La celda máxima (la primera si empatan) lleva contorno y su valor a la vista
+    const indiceMaximo = maximo > 0 ? celdas.findIndex((celda) => Number(celda[2]) === maximo) : -1;
+    const datosSerie = celdas.map((celda, i) =>
+      i === indiceMaximo
+        ? {
+            value: celda,
+            itemStyle: { borderColor: tema.texto, borderWidth: 2 },
+            // En una pastilla de superficie: legible sobre cualquier color de la gama
+            label: {
+              show: true,
+              color: tema.texto,
+              backgroundColor: tema.superficie,
+              padding: [2, 6],
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 12,
+              formatter: () => maximo.toLocaleString('es-MX'),
+            },
+          }
+        : celda
+    );
 
     const etiquetaEje = { color: tema.texto2, fontSize: 12, fontFamily: tema.fuente };
 
@@ -83,7 +124,7 @@ export default function GraficaMapaCalor({
         itemHeight: 160,
         precision: 0,
         text: ['Más', 'Menos'],
-        inRange: { color: tema.gamaCalor },
+        inRange: { color: gama || tema.gamaCalor },
         outOfRange: { color: tema.relleno },
         textStyle: etiquetaEje,
       },
@@ -91,17 +132,24 @@ export default function GraficaMapaCalor({
         {
           name: nombreMetrica,
           type: 'heatmap',
-          data: celdas,
+          data: datosSerie,
           itemStyle: {
             borderColor: tema.superficie, // separador de 2 px del color de la superficie
             borderWidth: 2,
             borderRadius: 4,
           },
-          emphasis: { itemStyle: { borderColor: tema.texto, borderWidth: 2 } },
+          emphasis: {
+            itemStyle: {
+              borderColor: tema.texto,
+              borderWidth: 2,
+              shadowBlur: 14,
+              shadowColor: tema.oscuro ? 'rgba(255,255,255,0.5)' : 'rgba(0,113,227,0.5)',
+            },
+          },
         },
       ],
     };
-  }, [celdas, etiquetasHorizontal, etiquetasVertical, nombreMetrica, sinDatos, tema, tituloHorizontal]);
+  }, [celdas, etiquetasHorizontal, etiquetasVertical, gama, nombreMetrica, sinDatos, tema, tituloHorizontal]);
 
   return (
     <LienzoEcharts
@@ -114,6 +162,8 @@ export default function GraficaMapaCalor({
       etiquetaAria={etiquetaAria}
       forma="calor"
       tabla={tabla}
+      fuente={fuente}
+      resaltar={resaltar}
     />
   );
 }

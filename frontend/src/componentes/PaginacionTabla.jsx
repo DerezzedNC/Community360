@@ -1,3 +1,4 @@
+// Paginación en píldora (§8.6): "1–50 de 1,068", anterior y siguiente
 export default function PaginacionTabla({
   pagina,
   limite,
@@ -11,44 +12,30 @@ export default function PaginacionTabla({
 
   return (
     <nav className="paginacion" aria-label="Páginas de resultados">
-      <p className="paginacion__resumen">
-        {total === 0
-          ? 'Sin resultados'
-          : `${inicio.toLocaleString('es-MX')}–${fin.toLocaleString('es-MX')} de ${total.toLocaleString('es-MX')} · página ${pagina} de ${totalPaginas}`}
-      </p>
-
-      <div className="paginacion__controles">
+      <div className="paginacion__pildora">
         <button
           type="button"
-          className="boton boton--secundario boton--chico"
-          onClick={() => alCambiarPagina(1)}
-          disabled={deshabilitado || pagina <= 1}
-        >
-          Primera
-        </button>
-        <button
-          type="button"
-          className="boton boton--secundario boton--chico"
+          className="paginacion__boton"
           onClick={() => alCambiarPagina(pagina - 1)}
           disabled={deshabilitado || pagina <= 1}
+          aria-label="Página anterior"
         >
-          Anterior
+          <span aria-hidden="true">‹</span> Anterior
         </button>
+        <p className="paginacion__resumen" aria-live="polite">
+          {total === 0
+            ? 'Sin resultados'
+            : `${inicio.toLocaleString('es-MX')}–${fin.toLocaleString('es-MX')} de ${total.toLocaleString('es-MX')}`}
+          <span className="sr-only">, página {pagina} de {totalPaginas}</span>
+        </p>
         <button
           type="button"
-          className="boton boton--secundario boton--chico"
+          className="paginacion__boton"
           onClick={() => alCambiarPagina(pagina + 1)}
           disabled={deshabilitado || pagina >= totalPaginas}
+          aria-label="Página siguiente"
         >
-          Siguiente
-        </button>
-        <button
-          type="button"
-          className="boton boton--secundario boton--chico"
-          onClick={() => alCambiarPagina(totalPaginas)}
-          disabled={deshabilitado || pagina >= totalPaginas}
-        >
-          Última
+          Siguiente <span aria-hidden="true">›</span>
         </button>
       </div>
     </nav>

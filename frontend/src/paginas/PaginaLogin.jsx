@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Aurora from '../componentes/Aurora';
+import { IconoCandado, IconoEnVivo, IconoEscudo, IconoOjo } from '../componentes/Iconos';
 import {
   ErrorApi,
+  consultarSalud,
   consultarSesionActual,
   iniciarSesion,
 } from '../servicios/api';
@@ -20,6 +23,36 @@ function revisarPassword(valor) {
   return valor ? '' : 'Escribe tu contraseña.';
 }
 
+// Píldora de estado real con GET /api/health (pública): verde si responde, gris si no
+function PildoraServicios() {
+  const [salud, setSalud] = useState(undefined);
+  useEffect(() => {
+    const controlador = new AbortController();
+    consultarSalud(controlador.signal)
+      .then((datos) => setSalud(datos || null))
+      .catch(() => {
+        if (!controlador.signal.aborted) setSalud(null);
+      });
+    return () => controlador.abort();
+  }, []);
+
+  const estado = (activo) => (salud === undefined ? 'consultando' : activo ? 'ok' : 'apagado');
+  const texto = (activo) => (salud === undefined ? 'comprobando' : activo ? 'responde' : 'sin respuesta');
+  return (
+    <p className="pildora-servicios" role="status" aria-live="polite">
+      <span>Servicios:</span>
+      <span className={`pildora-servicios__item pildora-servicios__item--${estado(salud?.tidb)}`}>
+        TiDB <span className="pildora-servicios__punto" aria-hidden="true" />
+        <span className="sr-only">{texto(salud?.tidb)}</span>
+      </span>
+      <span className={`pildora-servicios__item pildora-servicios__item--${estado(salud?.capella)}`}>
+        Capella <span className="pildora-servicios__punto" aria-hidden="true" />
+        <span className="sr-only">{texto(salud?.capella)}</span>
+      </span>
+    </p>
+  );
+}
+
 export default function PaginaLogin() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
@@ -30,6 +63,9 @@ export default function PaginaLogin() {
   const [alerta, setAlerta] = useState(null);
   const [errorCorreo, setErrorCorreo] = useState('');
   const [errorPassword, setErrorPassword] = useState('');
+  const [verPassword, setVerPassword] = useState(false);
+  const [mayusculas, setMayusculas] = useState(false);
+  const [sacudir, setSacudir] = useState(0); // cambia para repetir la sacudida del error
 
   // Si ya existe una sesión válida en cookie httpOnly, redirige a /dashboard
   useEffect(() => {
@@ -50,6 +86,17 @@ export default function PaginaLogin() {
 
     return () => controlador.abort();
   }, [ubicacion.key, navegar]);
+
+  function revisarMayusculas(evento) {
+    if (typeof evento.getModifierState === 'function') {
+      setMayusculas(evento.getModifierState('CapsLock'));
+    }
+  }
+
+  // Cada alerta nueva sacude brevemente la tarjeta (sin movimiento si se pide reducirlo)
+  useEffect(() => {
+    if (alerta) setSacudir((n) => n + 1);
+  }, [alerta]);
 
   async function manejarEnvio(evento) {
     evento.preventDefault();
@@ -124,7 +171,8 @@ export default function PaginaLogin() {
 
   if (verificandoSesion) {
     return (
-      <main className="contenedor-centrado">
+      <main className="contenedor-centrado contenedor-centrado--aurora">
+        <Aurora />
         <section className="tarjeta-estado" role="status" aria-live="polite">
           <span className="indicador-carga" aria-hidden="true" />
           <h1 className="tarjeta-estado__titulo">Comprobando la sesión…</h1>
@@ -134,26 +182,40 @@ export default function PaginaLogin() {
   }
 
   return (
-    <main className="contenedor-centrado">
+    <main className="acceso">
+      <Aurora />
+      <section className="acceso__presentacion" aria-label="Presentación">
+        <p className="acceso__marca-titulo">
+          COMMUNITY 360. <span className="acceso__marca-complemento">Tu comunidad, en tiempo real.</span>
+        </p>
+        <ul className="acceso__puntos">
+          <li>
+            <IconoEnVivo />
+            <span>
+              <strong>En vivo.</strong> Los cambios llegan por WebSocket, sin recargar.
+            </span>
+          </li>
+          <li>
+            <IconoEscudo />
+            <span>
+              <strong>Privado.</strong> La ubicación aparece solo con consentimiento.
+            </span>
+          </li>
+          <li>
+            <IconoCandado />
+            <span>
+              <strong>Seguro.</strong> La sesión viaja cifrada en una cookie protegida.
+            </span>
+          </li>
+        </ul>
+        <PildoraServicios />
+      </section>
+
       <section className="tarjeta-acceso" aria-labelledby="titulo-login">
-        <p className="tarjeta-acceso__marca">COMMUNITY 360</p>
         <h1 id="titulo-login" className="tarjeta-acceso__titulo">
           Inicia sesión. <span className="tarjeta-acceso__complemento">Usa tu cuenta de administración o de análisis.</span>
         </h1>
 
-        {alerta && (
-          <div
-            className={`alerta-acceso ${
-              alerta.tipo === 'servicio'
-                ? 'alerta-acceso--servicio'
-                : 'alerta-acceso--error'
-            }`}
-            role="alert"
-            aria-live="assertive"
-          >
-            {alerta.mensaje}
-          </div>
-        )}
 
         <form
           className="formulario-acceso"
@@ -198,10 +260,11 @@ export default function PaginaLogin() {
             >
               Contraseña
             </label>
+            <div className="campo-formulario__con-boton">
             <input
               id="campo-password"
               name="password"
-              type="password"
+              type={verPassword ? 'text' : 'password'}
               autoComplete="current-password"
               maxLength={1024}
               placeholder="Tu contraseña"
@@ -212,11 +275,29 @@ export default function PaginaLogin() {
                 if (errorPassword) setErrorPassword(revisarPassword(e.target.value));
               }}
               onBlur={() => setErrorPassword(revisarPassword(password))}
+              onKeyUp={revisarMayusculas}
+              onKeyDown={revisarMayusculas}
               aria-invalid={errorPassword ? true : undefined}
-              aria-describedby={errorPassword ? 'error-password' : undefined}
+              aria-describedby={[errorPassword && 'error-password', mayusculas && 'aviso-mayusculas'].filter(Boolean).join(' ') || undefined}
               disabled={enviando}
               required
             />
+            <button
+              type="button"
+              className="campo-formulario__ver"
+              onClick={() => setVerPassword((v) => !v)}
+              aria-label={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={verPassword}
+              disabled={enviando}
+            >
+              <IconoOjo tachado={verPassword} />
+            </button>
+            </div>
+            {mayusculas && (
+              <p id="aviso-mayusculas" className="campo-formulario__aviso">
+                Bloq Mayús está activado.
+              </p>
+            )}
             {errorPassword && (
               <p id="error-password" className="campo-formulario__error">
                 {errorPassword}
@@ -224,11 +305,28 @@ export default function PaginaLogin() {
             )}
           </div>
 
+          {/* Error del servidor bajo los campos, con una sacudida breve */}
+          {alerta && (
+            <div
+              key={sacudir}
+              className={`alerta-acceso alerta-acceso--sacudir ${
+                alerta.tipo === 'servicio'
+                  ? 'alerta-acceso--servicio'
+                  : 'alerta-acceso--error'
+              }`}
+              role="alert"
+              aria-live="assertive"
+            >
+              {alerta.mensaje}
+            </div>
+          )}
+
           <button
             type="submit"
             className="boton boton--primario boton--ancho"
             disabled={enviando}
           >
+            {enviando && <span className="indicador-carga indicador-carga--boton" aria-hidden="true" />}
             {enviando ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </button>
         </form>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import Avatar from '../componentes/Avatar';
+import EstadoVacio from '../componentes/EstadoVacio';
 import HojaModal from '../componentes/HojaModal';
 import PaginacionTabla from '../componentes/PaginacionTabla';
 import SelectorCatalogo from '../componentes/SelectorCatalogo';
@@ -90,6 +92,7 @@ function ModalDetalleUsuario({
       antetitulo="Detalle de usuario"
       titulo={u?.alias || idUsuario}
       alCerrar={alCerrar}
+      lateral
     >
         {estado.cargando ? (
           <div className="esqueleto esqueleto--detalle" role="status" aria-live="polite">
@@ -122,22 +125,21 @@ function ModalDetalleUsuario({
           </div>
         ) : u ? (
           <div className="detalle-usuario">
+            <div className="detalle-usuario__cabecera">
+              <Avatar alias={u.alias} />
+              <div>
+                <p className="texto-fuerte">{u.alias}</p>
+                <span className={`estatus estatus--${u.estatus}`}>
+                  {ETIQUETAS_ESTATUS[u.estatus] || u.estatus}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="detalle-usuario__seccion">Perfil</h3>
             <dl className="rejilla-detalle">
               <div className="campo-detalle">
                 <dt>ID de usuario</dt>
                 <dd className="celda-id">{u.id_usuario}</dd>
-              </div>
-              <div className="campo-detalle">
-                <dt>Alias</dt>
-                <dd>{u.alias}</dd>
-              </div>
-              <div className="campo-detalle">
-                <dt>Estatus</dt>
-                <dd>
-                  <span className={`estatus estatus--${u.estatus}`}>
-                    {ETIQUETAS_ESTATUS[u.estatus] || u.estatus}
-                  </span>
-                </dd>
               </div>
               <div className="campo-detalle">
                 <dt>Plataforma</dt>
@@ -163,6 +165,14 @@ function ModalDetalleUsuario({
                 <dt>Fecha de ingreso</dt>
                 <dd>{formatearFecha(u.fecha_ingreso)}</dd>
               </div>
+              <div className="campo-detalle">
+                <dt>Consentimiento de datos</dt>
+                <dd>{u.consentimiento_datos ? 'Otorgado' : 'No otorgado'}</dd>
+              </div>
+            </dl>
+
+            <h3 className="detalle-usuario__seccion">Actividad</h3>
+            <dl className="rejilla-detalle">
               <div className="campo-detalle">
                 <dt>Última actividad</dt>
                 <dd>{formatearFecha(u.ultima_actividad)}</dd>
@@ -191,28 +201,28 @@ function ModalDetalleUsuario({
                 <dt>Comportamiento atípico</dt>
                 <dd>{u.es_atipico ? 'Sí' : 'No'}</dd>
               </div>
-              <div className="campo-detalle">
-                <dt>Consentimiento de datos</dt>
-                <dd>{u.consentimiento_datos ? 'Otorgado' : 'No otorgado'}</dd>
-              </div>
-              <div className="campo-detalle campo-detalle--amplio">
-                <dt>Ubicación</dt>
-                <dd>
-                  {u.ubicacion ? (
-                    <span>
-                      {formatearUbicacionCorta(u.ubicacion)}
-                      {u.ubicacion.zona_horaria
-                        ? ` · Zona horaria: ${u.ubicacion.zona_horaria}`
-                        : ''}
-                    </span>
-                  ) : (
-                    <span className="texto-sin-consentimiento">
-                      No se muestra: el usuario no dio su consentimiento.
-                    </span>
-                  )}
-                </dd>
-              </div>
             </dl>
+
+            {/* Privacidad: sin consentimiento no hay ubicación (la API ya la manda en null) */}
+            <h3 className="detalle-usuario__seccion">{u.ubicacion ? 'Ubicación' : 'Sin consentimiento'}</h3>
+            {u.ubicacion ? (
+              <dl className="rejilla-detalle">
+                <div className="campo-detalle campo-detalle--amplio">
+                  <dt>Ciudad, estado y país</dt>
+                  <dd>{formatearUbicacionCorta(u.ubicacion)}</dd>
+                </div>
+                {u.ubicacion.zona_horaria && (
+                  <div className="campo-detalle campo-detalle--amplio">
+                    <dt>Zona horaria</dt>
+                    <dd>{u.ubicacion.zona_horaria}</dd>
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p className="texto-sin-consentimiento">
+                El usuario no dio su consentimiento: su ubicación no se muestra.
+              </p>
+            )}
           </div>
         ) : null}
     </HojaModal>
@@ -504,25 +514,23 @@ export default function VistaUsuarios() {
           </div>
         ) : estadoTabla.datos.length === 0 ? (
           <>
-            <div className="estado-grafica" role="status">
-              <p className="estado-grafica__titulo">
-                {hayFiltrosActivos ? 'No hay usuarios con estos filtros.' : 'No hay usuarios en esta página.'}
-              </p>
-              <p className="estado-grafica__texto">
-                {hayFiltrosActivos ? 'Prueba quitando alguno.' : 'Vuelve a la primera página.'}
-              </p>
-              {hayFiltrosActivos ? (
-                <button type="button" className="boton boton--secundario" onClick={limpiarFiltros}>
-                  Quitar filtros
-                </button>
-              ) : (
-                estadoTabla.total > 0 && (
-                  <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
-                    Ir a la primera página
+            <EstadoVacio
+              titulo={hayFiltrosActivos ? 'No hay usuarios con estos filtros.' : 'No hay usuarios en esta página.'}
+              texto={hayFiltrosActivos ? 'Prueba quitando alguno.' : 'Vuelve a la primera página.'}
+              accion={
+                hayFiltrosActivos ? (
+                  <button type="button" className="boton boton--secundario" onClick={limpiarFiltros}>
+                    Quitar filtros
                   </button>
+                ) : (
+                  estadoTabla.total > 0 && (
+                    <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
+                      Ir a la primera página
+                    </button>
+                  )
                 )
-              )}
-            </div>
+              }
+            />
             {estadoTabla.total > 0 && (
               <PaginacionTabla
                 pagina={pagina}
@@ -561,10 +569,15 @@ export default function VistaUsuarios() {
                       >
                         <td className="celda-id" title={u.id_usuario}>{recortarId(u.id_usuario)}</td>
                         <td>
-                          <span className="texto-fuerte">{u.alias}</span>
-                          {u.es_artista && (
-                            <span className="insignia-sutil">Artista</span>
-                          )}
+                          <span className="celda-alias">
+                            <Avatar alias={u.alias} />
+                            <span className="celda-alias__texto">
+                              <span className="texto-fuerte">{u.alias}</span>
+                              {u.es_artista && (
+                                <span className="insignia-sutil">Artista</span>
+                              )}
+                            </span>
+                          </span>
                         </td>
                         <td>
                           <span className={`estatus estatus--${u.estatus}`}>
@@ -580,7 +593,7 @@ export default function VistaUsuarios() {
                         <td>
                           {obtenerNombreLegible('interes', u.cod_interes)}
                         </td>
-                        <td>
+                        <td className="celda-corta">
                           {obtenerNombreLegible('rango_edad', u.cod_rango_edad)}
                         </td>
                         <td className="celda-numero">
@@ -591,7 +604,12 @@ export default function VistaUsuarios() {
                         </td>
                         <td>
                           {textoUbicacion ? (
-                            <span>{textoUbicacion}</span>
+                            <span className="ubicacion-dos-lineas">
+                              <span>{u.ubicacion.ciudad}</span>
+                              <span className="ubicacion-dos-lineas__resto">
+                                {[u.ubicacion.estado, u.ubicacion.pais].filter(Boolean).join(', ')}
+                              </span>
+                            </span>
                           ) : (
                             <span className="texto-sin-consentimiento">
                               Sin consentimiento

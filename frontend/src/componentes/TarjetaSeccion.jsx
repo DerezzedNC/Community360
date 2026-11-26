@@ -1,4 +1,32 @@
-// Tarjeta del dashboard (docs/DISENO.md §3 y §6): título, subtítulo con unidades,
+import { useEffect, useRef, useState } from 'react';
+
+// Entrada progresiva (§8.3): la tarjeta aparece al entrar en pantalla
+export function useRevelar() {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const nodo = ref.current;
+    if (!nodo || visible) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return undefined;
+    }
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          observador.disconnect();
+        }
+      },
+      { rootMargin: '0px 0px -8% 0px' }
+    );
+    observador.observe(nodo);
+    return () => observador.disconnect();
+  }, [visible]);
+  return [ref, visible];
+}
+
+// Tarjeta del dashboard (docs/DISENO.md §3, §6 y §8): título, subtítulo con unidades,
 // frase-resumen calculada con los datos de la API, insignias de privacidad y el contenido.
 export default function TarjetaSeccion({
   id,
@@ -11,12 +39,15 @@ export default function TarjetaSeccion({
   insigniaPrivacidad = '', // nombre anterior de insignias
   fuente = '',
   rutaApi = '', // nombre anterior de fuente
-  ancho = 'mitad', // 'completo' | 'ancho' | 'mitad' | 'angosto'
+  ancho = 'mitad', // 'completo' | 'ancho' | 'mitad' | 'angosto' | 'tercio'
   anchoCompleto = false,
   nivelTitulo = 3,
+  orden = 0, // posición en su fila: escalona la entrada 60 ms
+  accion = null, // control opcional a la derecha del título
   children,
 }) {
   const Titulo = `h${nivelTitulo}`;
+  const [ref, visible] = useRevelar();
   const listaInsignias = insignias.length > 0 ? insignias : insigniaPrivacidad ? [insigniaPrivacidad] : [];
   const textoSubtitulo = subtitulo || descripcion;
   const textoFuente = fuente || rutaApi;
@@ -24,14 +55,19 @@ export default function TarjetaSeccion({
 
   return (
     <article
+      ref={ref}
       id={id}
-      className={`tarjeta tarjeta--${claseAncho}`}
+      className={`tarjeta tarjeta--${claseAncho} revelar ${visible ? 'revelar--visible' : ''}`}
+      style={{ '--retraso': `${(orden % 4) * 60}ms` }}
       aria-labelledby={`${id}-titulo`}
     >
       <header className="tarjeta__encabezado">
-        <Titulo id={`${id}-titulo`} className="tarjeta__titulo">
-          {titulo}
-        </Titulo>
+        <div className="tarjeta__fila-titulo">
+          <Titulo id={`${id}-titulo`} className="tarjeta__titulo">
+            {titulo}
+          </Titulo>
+          {accion}
+        </div>
         {textoSubtitulo && <p className="tarjeta__subtitulo">{textoSubtitulo}</p>}
         {listaInsignias.length > 0 && (
           <ul className="insignias" aria-label="Privacidad">
@@ -53,7 +89,7 @@ export default function TarjetaSeccion({
 
       <div className="tarjeta__cuerpo">{children}</div>
 
-      {textoFuente && <p className="tarjeta__fuente">Fuente: {textoFuente}</p>}
+      {textoFuente && <code className="tarjeta__fuente">{textoFuente}</code>}
     </article>
   );
 }

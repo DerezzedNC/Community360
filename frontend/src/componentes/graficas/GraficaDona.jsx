@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import LienzoEcharts from './LienzoEcharts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import LienzoEcharts, { compararSeries, fotografiarSeries } from './LienzoEcharts';
 import { escaparHtml, tooltipBase, useTemaGraficas } from './temaGraficas';
 
 const CENTRO_VERTICAL = '58%';
@@ -16,9 +16,22 @@ export default function GraficaDona({
   alReintentar,
   etiquetaAria = 'Gráfica de dona',
   tabla = null,
+  fuente = '',
 }) {
   const tema = useTemaGraficas();
   const sinDatos = !Array.isArray(datos) || datos.length === 0;
+  const anteriorRef = useRef(null);
+  const [resaltar, setResaltar] = useState(null);
+
+  // Qué segmentos cambiaron respecto a los datos anteriores (para iluminarlos 1.5 s)
+  useEffect(() => {
+    if (sinDatos) return;
+    const categorias = datos.map((e) => e.nombre);
+    const series = [{ nombre: 'dona', datos: datos.map((e) => e.valor) }];
+    const cambios = compararSeries(anteriorRef.current, categorias, series);
+    anteriorRef.current = fotografiarSeries(categorias, series);
+    if (cambios && cambios.length > 0) setResaltar(cambios);
+  }, [datos, sinDatos]);
 
   const opcion = useMemo(() => {
     if (sinDatos) {
@@ -102,6 +115,8 @@ export default function GraficaDona({
         etiquetaAria={etiquetaAria}
         forma="dona"
         tabla={tabla}
+        fuente={fuente}
+        resaltar={resaltar}
       />
       {!cargando && !error && !sinDatos && centro}
     </div>

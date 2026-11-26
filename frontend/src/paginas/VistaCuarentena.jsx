@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import EstadoVacio from '../componentes/EstadoVacio';
 import HojaModal from '../componentes/HojaModal';
 import PaginacionTabla from '../componentes/PaginacionTabla';
 import TarjetaSeccion from '../componentes/TarjetaSeccion';
@@ -31,6 +32,7 @@ function ModalRegistroCuarentena({ elemento, alCerrar }) {
       antetitulo="Registro en cuarentena"
       titulo={<span className="celda-id">{elemento.id_cuarentena}</span>}
       alCerrar={alCerrar}
+      lateral
     >
         <dl className="rejilla-detalle">
           <div className="campo-detalle">
@@ -60,7 +62,7 @@ function ModalRegistroCuarentena({ elemento, alCerrar }) {
             <dd className="grupo-motivos">
               {Array.isArray(elemento.motivos) && elemento.motivos.length > 0
                 ? elemento.motivos.map((m) => (
-                    <span key={m} className="insignia-motivo">
+                    <span key={m} className={`insignia-motivo motivo--${m}`}>
                       {MAPA_MOTIVOS[m] || m}
                     </span>
                   ))
@@ -252,25 +254,23 @@ export default function VistaCuarentena() {
           </div>
         ) : estado.datos.length === 0 ? (
           <>
-            <div className="estado-grafica" role="status">
-              <p className="estado-grafica__titulo">
-                {motivo ? 'No hay registros con este motivo.' : 'No hay registros en esta página.'}
-              </p>
-              <p className="estado-grafica__texto">
-                {motivo ? 'Prueba con otro motivo o quita el filtro.' : 'Vuelve a la primera página.'}
-              </p>
-              {motivo ? (
-                <button type="button" className="boton boton--secundario" onClick={() => cambiarMotivo('')}>
-                  Quitar filtro
-                </button>
-              ) : (
-                estado.total > 0 && (
-                  <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
-                    Ir a la primera página
+            <EstadoVacio
+              titulo={motivo ? 'No hay registros con este motivo.' : 'No hay registros en esta página.'}
+              texto={motivo ? 'Prueba con otro motivo o quita el filtro.' : 'Vuelve a la primera página.'}
+              accion={
+                motivo ? (
+                  <button type="button" className="boton boton--secundario" onClick={() => cambiarMotivo('')}>
+                    Quitar filtro
                   </button>
+                ) : (
+                  estado.total > 0 && (
+                    <button type="button" className="boton boton--secundario" onClick={() => cambiarPagina(1)}>
+                      Ir a la primera página
+                    </button>
+                  )
                 )
-              )}
-            </div>
+              }
+            />
             {estado.total > 0 && (
               <PaginacionTabla
                 pagina={pagina}
@@ -308,7 +308,7 @@ export default function VistaCuarentena() {
                           {Array.isArray(fila.motivos) &&
                           fila.motivos.length > 0
                             ? fila.motivos.map((m) => (
-                                <span key={m} className="insignia-motivo">
+                                <span key={m} className={`insignia-motivo motivo--${m}`}>
                                   {MAPA_MOTIVOS[m] || m}
                                 </span>
                               ))

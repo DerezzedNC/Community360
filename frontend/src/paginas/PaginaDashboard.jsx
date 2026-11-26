@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useOutletContext } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Aurora from '../componentes/Aurora';
 import ControlSegmentado from '../componentes/ControlSegmentado';
-import TarjetaSeccion from '../componentes/TarjetaSeccion';
+import { IconoCambio } from '../componentes/Iconos';
+import TarjetaSeccion, { useRevelar } from '../componentes/TarjetaSeccion';
 import {
   GraficaBarras,
   GraficaDona,
@@ -11,8 +11,9 @@ import {
 } from '../componentes/graficas';
 import { useTemaGraficas } from '../componentes/graficas/temaGraficas';
 import { useCatalogos } from '../contextos/ContextoCatalogos';
+import { useAlCambiarEnVivo, useEnVivo } from '../contextos/ContextoEnVivo';
 import useConsultaApi from '../hooks/useConsultaApi';
-import useMetricasTiempoReal from '../hooks/useMetricasTiempoReal';
+import usePreferenciasSistema from '../hooks/usePreferenciasSistema';
 import {
   consultarMetricasActividad,
   consultarMetricasDemografia,
@@ -67,118 +68,223 @@ const ETIQUETAS_CAMBIO = {
   borrada: 'Interacción borrada',
 };
 
-const SEGUNDOS_AVISO = 8;
+const SECCIONES = [
+  { id: 'grupo-resumen', texto: 'Resumen' },
+  { id: 'grupo-interacciones', texto: 'Interacciones' },
+  { id: 'grupo-geografia', texto: 'Geografía' },
+  { id: 'grupo-usuarios', texto: 'Usuarios' },
+];
 
-// Reloj para los textos "hace X s"
+const SEGUNDOS_CHIP = 4;
+const ALTO_FILA_CALOR = 34;
+
 function useAhora(cadaMs) {
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => {
-    const temporizador = window.setInterval(() => setAhora(Date.now()), cadaMs);
-    return () => window.clearInterval(temporizador);
+    const t = window.setInterval(() => setAhora(Date.now()), cadaMs);
+    return () => window.clearInterval(t);
   }, [cadaMs]);
   return ahora;
 }
 
-// Aviso flotante de cambios (docs/DISENO.md §4.6): aparece abajo al centro y se desvanece
-function AvisoFlotante({ cambio }) {
-  const ahora = useAhora(1000);
-  const [visible, setVisible] = useState(false);
+// Números que cuentan (§8.2): del valor anterior al nuevo en 0.6 s. Sin animación si se pide.
+function useNumeroAnimado(valor, reducirMovimiento) {
+  const objetivo = Number(valor);
+  const [mostrado, setMostrado] = useState(reducirMovimiento ? objetivo : 0);
+  const anteriorRef = useRef(reducirMovimiento ? objetivo : 0);
 
   useEffect(() => {
-    if (!cambio) {
+    if (!Number.isFinite(objetivo)) return undefined;
+    const desde = anteriorRef.current;
+    anteriorRef.current = objetivo;
+    if (reducirMovimiento || desde === objetivo) {
+      setMostrado(objetivo);
       return undefined;
     }
-    setVisible(true);
-    const temporizador = window.setTimeout(() => setVisible(false), SEGUNDOS_AVISO * 1000);
-    return () => window.clearTimeout(temporizador);
-  }, [cambio]);
-
-  if (!cambio) {
-    return null;
-  }
-
-  const accion = ETIQUETAS_CAMBIO[cambio.tipo] || `Interacción ${cambio.tipo}`;
-  return (
-    <div className={`aviso-flotante aviso-flotante--${cambio.tipo} ${visible ? 'aviso-flotante--visible' : ''}`} role="status" aria-live="polite">
-      <span className="aviso-flotante__punto" aria-hidden="true" />
-      <span>
-        {accion} · <span className="aviso-flotante__id">{cambio.id_interaccion}</span> ·{' '}
-        {formatearTiempoRelativo(cambio.recibidoEnMs, ahora)}
-      </span>
-    </div>
-  );
-}
-
-// Controles del WebSocket en la barra superior: texto además del color
-function ControlesEnVivo({ conexionWs, esperaReconexionSeg, solicitandoActualizacion, solicitarActualizacion, reconectarAhora }) {
-  let indicador;
-  if (conexionWs === 'conectado') {
-    indicador = { clase: 'ok', texto: 'En vivo' };
-  } else if (conexionWs === 'origen_rechazado') {
-    indicador = { clase: 'error', texto: 'Conexión rechazada' };
-  } else if (conexionWs === 'reconectando') {
-    indicador = {
-      clase: 'apagado',
-      texto: esperaReconexionSeg > 0 ? `Sin conexión, reintento en ${esperaReconexionSeg} s` : 'Reconectando',
+    const inicio = performance.now();
+    let cuadro;
+    const paso = (momento) => {
+      const t = Math.min(1, (momento - inicio) / 600);
+      const suave = 1 - (1 - t) ** 3;
+      setMostrado(desde + (objetivo - desde) * suave);
+      if (t < 1) cuadro = requestAnimationFrame(paso);
     };
-  } else {
-    indicador = { clase: 'apagado', texto: 'Conectando' };
-  }
+    cuadro = requestAnimationFrame(paso);
+    return () => {
+      cancelAnimationFrame(cuadro);
+      setMostrado(objetivo);
+    };
+  }, [objetivo, reducirMovimiento]);
 
+  return mostrado;
+}
+
+// Chip "+1" o "−1" durante 4 s cuando el evento cambió este indicador
+function ChipCambio({ cambio, recibidoEnMs }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!cambio) return undefined;
+    setVisible(true);
+    const t = window.setTimeout(() => setVisible(false), SEGUNDOS_CHIP * 1000);
+    return () => window.clearTimeout(t);
+  }, [cambio, recibidoEnMs]);
+  if (!cambio || !visible) return null;
+  const sube = cambio > 0;
   return (
-    <>
-      <span className={`indicador indicador--${indicador.clase}`} role="status" aria-live="polite">
-        <span className="indicador__punto" aria-hidden="true" />
-        {indicador.texto}
-      </span>
-      {conexionWs === 'conectado' && (
-        <button
-          type="button"
-          className="boton boton--primario boton--barra"
-          onClick={solicitarActualizacion}
-          disabled={solicitandoActualizacion}
-        >
-          {solicitandoActualizacion ? 'Actualizando…' : 'Actualizar en vivo'}
-        </button>
-      )}
-      {(conexionWs === 'reconectando' || conexionWs === 'origen_rechazado') && (
-        <button type="button" className="boton boton--secundario boton--barra" onClick={reconectarAhora}>
-          Reconectar ahora
-        </button>
-      )}
-    </>
+    <span className={`chip-cambio ${sube ? 'chip-cambio--sube' : 'chip-cambio--baja'}`}>
+      {sube ? `+${formatearEntero(cambio)}` : `−${formatearEntero(Math.abs(cambio))}`}
+      <span className="sr-only">{sube ? ' más que antes' : ' menos que antes'}</span>
+    </span>
   );
 }
 
-// Número grande con leyenda corta. La clave reinicia la animación breve cuando cambia el valor.
-function Kpi({ valor, leyenda, enVivo = false }) {
+function Kpi({ valor, decimales = 0, leyenda, cambio = 0, recibidoEnMs = 0, textoSinDatos = 'Sin datos', grande = false }) {
+  const { reducirMovimiento } = usePreferenciasSistema();
+  const mostrado = useNumeroAnimado(valor, reducirMovimiento);
+  const sinDato = valor === null || valor === undefined || !Number.isFinite(Number(valor));
   return (
-    <div className="kpi">
+    <div className={`kpi ${grande ? 'kpi--grande' : ''}`}>
       <p className="kpi__valor">
-        <span key={valor} className="kpi__numero">
-          {valor}
-        </span>
+        {sinDato ? textoSinDatos : decimales > 0 ? formatearDecimal(mostrado, decimales) : formatearEntero(Math.round(mostrado))}
+        <ChipCambio cambio={cambio} recibidoEnMs={recibidoEnMs} />
       </p>
-      <p className="kpi__leyenda">
-        {leyenda}
-        {enVivo && <span className="kpi__en-vivo">, en vivo</span>}
-      </p>
+      <p className="kpi__leyenda">{leyenda}</p>
     </div>
+  );
+}
+
+// Mini gráfica de la sesión: el total de interacciones en cada resumen recibido (datos reales)
+function MiniGrafica({ serie }) {
+  if (serie.length < 2) {
+    return (
+      <p className="mini-grafica__leyenda">
+        La línea de esta sesión aparece desde el segundo resumen recibido (con un cambio o con Actualizar en vivo).
+      </p>
+    );
+  }
+  const valores = serie.map((p) => p.interacciones);
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  const ancho = 240;
+  const alto = 56;
+  const puntos = valores.map((v, i) => {
+    const x = (i / (valores.length - 1)) * ancho;
+    const y = max === min ? alto / 2 : alto - 6 - ((v - min) / (max - min)) * (alto - 12);
+    return [x, y];
+  });
+  const linea = puntos.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  return (
+    <figure className="mini-grafica">
+      <svg
+        viewBox={`0 0 ${ancho} ${alto}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Total de interacciones en ${valores.length} resúmenes de esta sesión: de ${formatearEntero(valores[0])} a ${formatearEntero(valores[valores.length - 1])}.`}
+      >
+        <polyline points={`0,${alto} ${linea} ${ancho},${alto}`} className="mini-grafica__area" />
+        <polyline points={linea} className="mini-grafica__linea" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <figcaption className="mini-grafica__leyenda">
+        En esta sesión: de {formatearEntero(min)} a {formatearEntero(max)}, en {valores.length} resúmenes recibidos.
+      </figcaption>
+    </figure>
+  );
+}
+
+// Panel "Actividad reciente": eventos metricas.actualizadas con cambio, en memoria (máximo 10)
+function ActividadReciente({ eventos }) {
+  const ahora = useAhora(1000);
+  if (eventos.length === 0) {
+    return (
+      <div className="actividad-vacia">
+        <svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true" className="dibujo-vacio">
+          <path d="M2 30h12l6-16 8 24 6-12h28" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <p>Sin cambios desde que abriste el panel. Envía una petición desde Postman para verla aquí.</p>
+      </div>
+    );
+  }
+  return (
+    <ol className="actividad-lista">
+      {eventos.map((evento) => (
+        <li key={evento.recibidoEnMs} className={`actividad-lista__item actividad-lista__item--${evento.tipo}`}>
+          <IconoCambio tipo={evento.tipo} />
+          <span>
+            {ETIQUETAS_CAMBIO[evento.tipo] || `Interacción ${evento.tipo}`} ·{' '}
+            <span className="actividad-lista__id">{evento.id_interaccion}</span> ·{' '}
+            <span className="actividad-lista__tiempo">{formatearTiempoRelativo(evento.recibidoEnMs, ahora)}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// Índice fijo de secciones: marca la visible y lleva a ella (§8.3)
+function IndiceSecciones() {
+  const [activa, setActiva] = useState(SECCIONES[0].id);
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const visibles = new Map();
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        entradas.forEach((e) => visibles.set(e.target.id, e.isIntersecting));
+        const primera = SECCIONES.find((s) => visibles.get(s.id));
+        if (primera) setActiva(primera.id);
+      },
+      { rootMargin: '-150px 0px -55% 0px' }
+    );
+    SECCIONES.forEach((s) => {
+      const nodo = document.getElementById(s.id);
+      if (nodo) observador.observe(nodo);
+    });
+    return () => observador.disconnect();
+  }, []);
+
+  return (
+    <nav className="indice" aria-label="Secciones del panel">
+      <div className="indice__pildora">
+        {SECCIONES.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className={`indice__enlace ${activa === s.id ? 'indice__enlace--activo' : ''}`}
+            aria-current={activa === s.id ? 'true' : undefined}
+            onClick={() => setActiva(s.id)}
+          >
+            {s.texto}
+          </a>
+        ))}
+      </div>
+    </nav>
   );
 }
 
 function EncabezadoGrupo({ id, titulo, complemento }) {
   return (
-    <h2 id={id} className="titulo-grupo">
+    <h2 id={`${id}-titulo`} className="titulo-grupo">
       {titulo} <span className="titulo-grupo__complemento">{complemento}</span>
     </h2>
   );
 }
 
+function BloqueRevelado({ className = '', orden = 0, etiqueta, children }) {
+  const [ref, visible] = useRevelar();
+  return (
+    <section
+      ref={ref}
+      className={`${className} revelar ${visible ? 'revelar--visible' : ''}`}
+      style={{ '--retraso': `${(orden % 4) * 60}ms` }}
+      aria-label={etiqueta}
+    >
+      {children}
+    </section>
+  );
+}
+
 export default function PaginaDashboard() {
-  const contextoLayout = useOutletContext() || {};
   const tema = useTemaGraficas();
-  const { cargandoCatalogos, errorCatalogos, obtenerNombreLegible } = useCatalogos();
+  const { cargandoCatalogos, errorCatalogos, obtenerNombreLegible, obtenerIndiceCodigo } = useCatalogos();
 
   // Métricas de TiDB (no cambian con el CRUD de interacciones)
   const consultaEstatus = useConsultaApi(consultarMetricasEstatus);
@@ -203,17 +309,10 @@ export default function PaginaDashboard() {
     consultaActividad.refrescarSilencioso();
   }, [consultaActividad, consultaEtiquetas, consultaPlataformas, consultaTemas, consultaTipos]);
 
-  const {
-    conexionWs,
-    resumen: r,
-    ultimoEventoTs,
-    avisoServicioResumen,
-    esperaReconexionSeg,
-    ultimoCambio,
-    solicitandoActualizacion,
-    solicitarActualizacion,
-    reconectarAhora,
-  } = useMetricasTiempoReal(manejarCambioTiempoReal);
+  // El WebSocket vive en el layout (mismo hook); esta vista solo registra qué refrescar
+  useAlCambiarEnVivo(manejarCambioTiempoReal);
+  const { conexionWs, resumen: r, ultimoEventoTs, avisoServicioResumen, reconectarAhora, eventos, serie, delta } =
+    useEnVivo();
 
   const [nivelGeografia, setNivelGeografia] = useState('estados');
   const [vistaTemas, setVistaTemas] = useState('interacciones');
@@ -222,11 +321,13 @@ export default function PaginaDashboard() {
   const esperandoNombresCatalogo = cargandoCatalogos && !errorCatalogos;
   const nombrePlataforma = useCallback((codigo) => obtenerNombreLegible('plataforma', codigo), [obtenerNombreLegible]);
   const nombreTema = useCallback((codigo) => obtenerNombreLegible('tema', codigo), [obtenerNombreLegible]);
+  // §8.4: un color fijo por código del catálogo, el mismo en todas las gráficas
+  const colorDe = useCallback(
+    (catalogo, codigo) => tema.categoria(obtenerIndiceCodigo(catalogo, codigo)),
+    [obtenerIndiceCodigo, tema]
+  );
 
-  // Colores fijos: interacciones en azul, usuarios en índigo, sentimiento en menta (continuidad entre gráficas)
-  const colorInteracciones = tema.color('azul');
   const colorUsuarios = tema.color('indigo');
-  const colorSentimiento = tema.color('menta');
 
   // --- Estatus ---------------------------------------------------------------------
   const estatus = useMemo(() => {
@@ -253,9 +354,7 @@ export default function PaginaDashboard() {
   // --- Geografía -------------------------------------------------------------------
   const geografia = useMemo(() => {
     const datosGeo = consultaGeografia.datos;
-    const lista = datosGeo
-      ? (nivelGeografia === 'ciudades' ? datosGeo.ciudades : datosGeo.estados) || []
-      : [];
+    const lista = datosGeo ? (nivelGeografia === 'ciudades' ? datosGeo.ciudades : datosGeo.estados) || [] : [];
     if (lista.length === 0) {
       return { categorias: [], series: [], altura: '300px', tabla: null };
     }
@@ -264,7 +363,7 @@ export default function PaginaDashboard() {
     return {
       categorias: ordenadaVisual.map(nombre),
       series: [{ nombre: 'Usuarios con consentimiento', datos: ordenadaVisual.map((i) => i.usuarios), color: colorUsuarios }],
-      altura: `${Math.max(280, ordenadaVisual.length * 34 + 24)}px`,
+      altura: `${Math.max(280, ordenadaVisual.length * 30 + 24)}px`,
       tabla: {
         titulo: 'Usuarios con consentimiento por lugar',
         columnas: [nivelGeografia === 'ciudades' ? 'Ciudad' : 'Estado', 'País', 'Usuarios'],
@@ -287,27 +386,28 @@ export default function PaginaDashboard() {
     };
   }, [pc]);
 
-  // --- Plataformas -----------------------------------------------------------------
+  // --- Plataformas: color de cada plataforma; interacciones en tono pleno y usuarios en tono claro
   const plataformas = useMemo(() => {
     const filas = consultaPlataformas.datos?.datos;
     if (!Array.isArray(filas) || filas.length === 0) {
       return { categorias: [], series: [], tabla: null };
     }
+    const colores = filas.map((f) => colorDe('plataforma', f.plataforma));
     return {
       categorias: filas.map((f) => nombrePlataforma(f.plataforma)),
       series: [
-        { nombre: 'Usuarios', datos: filas.map((f) => f.usuarios), color: colorUsuarios },
-        { nombre: 'Interacciones', datos: filas.map((f) => f.interacciones), color: colorInteracciones },
+        { nombre: 'Interacciones (tono pleno)', datos: filas.map((f) => f.interacciones), colores, color: tema.texto },
+        { nombre: 'Usuarios (tono claro)', datos: filas.map((f) => f.usuarios), colores, opacidad: 0.38, color: tema.texto2 },
       ],
       tabla: {
         titulo: 'Usuarios e interacciones por plataforma',
-        columnas: ['Plataforma', 'Usuarios', 'Interacciones'],
-        filas: filas.map((f) => [nombrePlataforma(f.plataforma), formatearEntero(f.usuarios), formatearEntero(f.interacciones)]),
+        columnas: ['Plataforma', 'Interacciones', 'Usuarios'],
+        filas: filas.map((f) => [nombrePlataforma(f.plataforma), formatearEntero(f.interacciones), formatearEntero(f.usuarios)]),
       },
     };
-  }, [colorInteracciones, colorUsuarios, consultaPlataformas.datos, nombrePlataforma]);
+  }, [colorDe, consultaPlataformas.datos, nombrePlataforma, tema]);
 
-  // --- Temas -----------------------------------------------------------------------
+  // --- Temas: color por tema; en la vista de sentimiento, escala divergente ----------
   const temas = useMemo(() => {
     const filas = consultaTemas.datos?.datos;
     if (!Array.isArray(filas) || filas.length === 0) {
@@ -327,7 +427,13 @@ export default function PaginaDashboard() {
       const ordenada = [...conDatos].reverse();
       return {
         categorias: ordenada.map((f) => nombreTema(f.tema)),
-        series: [{ nombre: 'Sentimiento promedio', datos: ordenada.map((f) => f.sentimiento_promedio), color: colorSentimiento }],
+        series: [
+          {
+            nombre: 'Sentimiento promedio',
+            datos: ordenada.map((f) => f.sentimiento_promedio),
+            colores: ordenada.map((f) => tema.colorSentimiento(f.sentimiento_promedio)),
+          },
+        ],
         decimales: 3,
         omitidos: filas.length - conDatos.length,
         tabla,
@@ -336,14 +442,20 @@ export default function PaginaDashboard() {
     const ordenada = [...filas].reverse();
     return {
       categorias: ordenada.map((f) => nombreTema(f.tema)),
-      series: [{ nombre: 'Interacciones', datos: ordenada.map((f) => f.interacciones), color: colorInteracciones }],
+      series: [
+        {
+          nombre: 'Interacciones',
+          datos: ordenada.map((f) => f.interacciones),
+          colores: ordenada.map((f) => colorDe('tema', f.tema)),
+        },
+      ],
       decimales: null,
       omitidos: 0,
       tabla,
     };
-  }, [colorInteracciones, colorSentimiento, consultaTemas.datos, nombreTema, vistaTemas]);
+  }, [colorDe, consultaTemas.datos, nombreTema, tema, vistaTemas]);
 
-  // --- Tipos: un color por tipo según su lugar en el catálogo (la API los da en ese orden) ---
+  // --- Tipos ------------------------------------------------------------------------
   const tipos = useMemo(() => {
     const filas = consultaTipos.datos?.datos;
     const total = Number(consultaTipos.datos?.total ?? 0);
@@ -351,11 +463,11 @@ export default function PaginaDashboard() {
       return { dona: [], tabla: null };
     }
     return {
-      dona: filas.map((f, indice) => ({
+      dona: filas.map((f) => ({
         nombre: f.nombre || f.tipo,
         valor: f.interacciones,
         porcentaje: f.porcentaje,
-        color: tema.categoria(indice),
+        color: colorDe('tipo_interaccion', f.tipo),
       })),
       tabla: {
         titulo: 'Interacciones por tipo',
@@ -363,9 +475,9 @@ export default function PaginaDashboard() {
         filas: filas.map((f) => [f.nombre || f.tipo, formatearEntero(f.interacciones), formatearPorcentaje(f.porcentaje)]),
       },
     };
-  }, [consultaTipos.datos, tema]);
+  }, [colorDe, consultaTipos.datos]);
 
-  // --- Etiquetas -------------------------------------------------------------------
+  // --- Etiquetas ---------------------------------------------------------------------
   const etiquetas = useMemo(() => {
     const filas = consultaEtiquetas.datos?.datos;
     if (!Array.isArray(filas) || filas.length === 0) {
@@ -374,20 +486,26 @@ export default function PaginaDashboard() {
     const ordenada = [...filas].reverse();
     return {
       categorias: ordenada.map((f) => f.nombre || f.etiqueta),
-      series: [{ nombre: 'Interacciones con la etiqueta', datos: ordenada.map((f) => f.interacciones), color: colorInteracciones }],
+      series: [
+        {
+          nombre: 'Interacciones con la etiqueta',
+          datos: ordenada.map((f) => f.interacciones),
+          colores: ordenada.map((f) => colorDe('etiqueta', f.etiqueta)),
+        },
+      ],
       tabla: {
         titulo: 'Etiquetas más usadas',
         columnas: ['Etiqueta', 'Interacciones'],
         filas: filas.map((f) => [f.nombre || f.etiqueta, formatearEntero(f.interacciones)]),
       },
     };
-  }, [colorInteracciones, consultaEtiquetas.datos]);
+  }, [colorDe, consultaEtiquetas.datos]);
 
-  // --- Actividad -------------------------------------------------------------------
+  // --- Actividad ---------------------------------------------------------------------
   const actividad = useMemo(() => {
     const celdasApi = consultaActividad.datos?.datos;
     if (!Array.isArray(celdasApi) || celdasApi.length === 0) {
-      return { horizontal: [], vertical: [], celdas: [], titulo: '', tabla: null };
+      return { horizontal: [], vertical: [], celdas: [], titulo: '', tabla: null, filas: 7 };
     }
     const horas = Array.from(new Set(celdasApi.map((c) => c.hora))).sort((a, b) => a - b);
     const dias = Array.from(new Set(celdasApi.map((c) => c.dia_semana))).sort((a, b) => b - a);
@@ -405,6 +523,7 @@ export default function PaginaDashboard() {
         .filter((c) => indiceHora.has(c.hora) && indiceDia.has(c.dia_semana))
         .map((c) => [indiceHora.get(c.hora), indiceDia.get(c.dia_semana), c.interacciones]),
       titulo: `Hora del día (${zona})`,
+      filas: dias.length,
       tabla:
         conActividad.length > 0
           ? {
@@ -419,10 +538,14 @@ export default function PaginaDashboard() {
     };
   }, [consultaActividad.datos]);
 
-  // --- Demografía ------------------------------------------------------------------
+  // --- Demografía ----------------------------------------------------------------------
   const demografia = useMemo(() => {
     const demo = consultaDemografia.datos;
-    const vacio = { edad: { categorias: [], series: [], tabla: null }, interes: { categorias: [], series: [], tabla: null }, cruce: { horizontal: [], vertical: [], celdas: [], tabla: null } };
+    const vacio = {
+      edad: { categorias: [], series: [], tabla: null },
+      interes: { categorias: [], series: [], tabla: null },
+      cruce: { horizontal: [], vertical: [], celdas: [], tabla: null },
+    };
     if (!demo) {
       return vacio;
     }
@@ -504,22 +627,13 @@ export default function PaginaDashboard() {
 
   const generadoEn = r?.generado_en || ultimoEventoTs;
   const generadoMs = generadoEn ? Date.parse(generadoEn) : NaN;
-
-  const controles = (
-    <ControlesEnVivo
-      conexionWs={conexionWs}
-      esperaReconexionSeg={esperaReconexionSeg}
-      solicitandoActualizacion={solicitandoActualizacion}
-      solicitarActualizacion={solicitarActualizacion}
-      reconectarAhora={reconectarAhora}
-    />
-  );
+  const cambioDe = (campo) => (delta && delta[campo] ? delta[campo] : 0);
+  const filasCruce = demografia.cruce.vertical.length || 10;
 
   return (
     <div className="pagina">
-      {contextoLayout.ranuraEnVivo && createPortal(controles, contextoLayout.ranuraEnVivo)}
-
-      <header className="encabezado-pagina">
+      <header className="encabezado-pagina encabezado-pagina--aurora">
+        <Aurora tenue />
         <h1 className="titulo-pagina">
           Comunidad en vivo. <span className="titulo-pagina__complemento">Así se mueve hoy.</span>
         </h1>
@@ -530,29 +644,75 @@ export default function PaginaDashboard() {
         </p>
       </header>
 
+      <IndiceSecciones />
+
       {avisoServicioResumen && r && (
         <p className="aviso-en-linea" role="alert">
           No se pudo calcular el resumen nuevo ({avisoServicioResumen.replace(/\.$/, '')}). Se muestran los últimos datos recibidos; la página se actualizará sola cuando vuelva la conexión.
         </p>
       )}
 
-      <section className="kpis" aria-label="Indicadores en vivo">
+      {/* Resumen ----------------------------------------------------------------- */}
+      <section id="grupo-resumen" className="grupo grupo--primero" aria-labelledby="grupo-resumen-titulo">
+        <h2 id="grupo-resumen-titulo" className="sr-only">
+          Resumen
+        </h2>
         {r ? (
-          <>
-            <Kpi valor={formatearEntero(r.interacciones)} leyenda="interacciones" enVivo />
-            <Kpi valor={formatearEntero(r.usuarios_que_interactuan)} leyenda="usuarios que interactúan" enVivo />
-            <Kpi
-              valor={r.sentimiento_promedio === null || r.sentimiento_promedio === undefined ? 'Sin datos' : formatearDecimal(r.sentimiento_promedio, 3)}
-              leyenda="sentimiento promedio, de -1 a 1"
-              enVivo
-            />
-            <Kpi valor={formatearEntero(r.usuarios)} leyenda="usuarios en el padrón" />
-            <Kpi valor={formatearEntero(r.usuarios_activos)} leyenda={`activos, ${formatearPorcentaje(r.porcentaje_activos)} del padrón`} />
-            <Kpi valor={formatearEntero(r.usuarios_con_consentimiento)} leyenda="con consentimiento de datos" />
-            <Kpi valor={formatearEntero(r.en_cuarentena)} leyenda="registros en cuarentena" />
-          </>
+          <div className="bento">
+            <BloqueRevelado className="tarjeta tarjeta--ancho kpi-principal" orden={0} etiqueta="Interacciones">
+              <p className="grupo-kpi__titulo">
+                <span className="punto-vivo" aria-hidden="true" />
+                Interacciones
+              </p>
+              <Kpi
+                grande
+                valor={r.interacciones}
+                leyenda="interacciones registradas en Capella"
+                cambio={cambioDe('interacciones')}
+                recibidoEnMs={delta?.recibidoEnMs}
+              />
+              <MiniGrafica serie={serie} />
+            </BloqueRevelado>
+
+            <BloqueRevelado className="tarjeta tarjeta--angosto actividad-reciente" orden={1} etiqueta="Actividad reciente">
+              <h3 className="tarjeta__titulo">Actividad reciente</h3>
+              <p className="tarjeta__subtitulo">Cambios recibidos en esta sesión, del más nuevo al más antiguo.</p>
+              <ActividadReciente eventos={eventos} />
+            </BloqueRevelado>
+
+            <BloqueRevelado className="tarjeta tarjeta--angosto grupo-kpi" orden={0} etiqueta="Indicadores en vivo">
+              <p className="grupo-kpi__titulo">
+                <span className="punto-vivo" aria-hidden="true" />
+                En vivo
+              </p>
+              <div className="grupo-kpi__lista">
+                <Kpi
+                  valor={r.usuarios_que_interactuan}
+                  leyenda="usuarios que interactúan"
+                  cambio={cambioDe('usuarios_que_interactuan')}
+                  recibidoEnMs={delta?.recibidoEnMs}
+                />
+                <Kpi valor={r.sentimiento_promedio} decimales={3} leyenda="sentimiento promedio, de -1 a 1" />
+              </div>
+            </BloqueRevelado>
+
+            <BloqueRevelado className="tarjeta tarjeta--ancho grupo-kpi" orden={1} etiqueta="Indicadores del padrón">
+              <p className="grupo-kpi__titulo">Padrón</p>
+              <div className="grupo-kpi__lista">
+                <Kpi valor={r.usuarios} leyenda="usuarios" cambio={cambioDe('usuarios')} recibidoEnMs={delta?.recibidoEnMs} />
+                <Kpi valor={r.usuarios_activos} leyenda={`activos, ${formatearPorcentaje(r.porcentaje_activos)}`} />
+                <Kpi valor={r.usuarios_con_consentimiento} leyenda="con consentimiento" />
+                <Kpi
+                  valor={r.en_cuarentena}
+                  leyenda="en cuarentena"
+                  cambio={cambioDe('en_cuarentena')}
+                  recibidoEnMs={delta?.recibidoEnMs}
+                />
+              </div>
+            </BloqueRevelado>
+          </div>
         ) : avisoServicioResumen || conexionWs === 'origen_rechazado' ? (
-          <div className="estado-grafica estado-grafica--error kpis__estado" role="alert">
+          <div className="estado-grafica estado-grafica--error" role="alert">
             <p className="estado-grafica__titulo">No se pudo recibir el resumen en vivo.</p>
             <p className="estado-grafica__texto">
               {avisoServicioResumen
@@ -564,30 +724,30 @@ export default function PaginaDashboard() {
             </button>
           </div>
         ) : (
-          [1, 2, 3, 4, 5, 6, 7].map((n) => (
-            <div key={n} className="kpi kpi--esqueleto" aria-hidden="true">
-              <span className="esqueleto-linea esqueleto-linea--grande" />
-              <span className="esqueleto-linea" />
-            </div>
-          ))
-        )}
-        {!r && !avisoServicioResumen && conexionWs !== 'origen_rechazado' && (
-          <span className="sr-only" role="status">Cargando indicadores</span>
+          <div className="bento" role="status" aria-live="polite">
+            <span className="sr-only">Cargando indicadores</span>
+            {['ancho', 'angosto', 'angosto', 'ancho'].map((ancho, n) => (
+              <div key={n} className={`tarjeta tarjeta--${ancho} kpi--esqueleto`} aria-hidden="true">
+                <span className="esqueleto-linea esqueleto-linea--grande" />
+                <span className="esqueleto-linea" />
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
       {/* Interacciones: cambian con cada alta, cambio o baja ------------------------- */}
-      <section className="grupo" aria-labelledby="grupo-interacciones">
+      <section id="grupo-interacciones" className="grupo" aria-labelledby="grupo-interacciones-titulo">
         <EncabezadoGrupo id="grupo-interacciones" titulo="Interacciones." complemento="Cambian con cada alta, cambio o baja." />
         <div className="bento">
           <TarjetaSeccion
             id="seccion-plataformas"
             titulo="Plataformas"
-            subtitulo="Usuarios del padrón e interacciones por plataforma, en número de registros."
+            subtitulo="Interacciones (tono pleno) y usuarios del padrón (tono claro) por plataforma, en número de registros."
             resumen={frases.plataformas}
             esperandoResumen={consultaPlataformas.cargando || esperandoNombresCatalogo}
-            fuente="GET /api/metricas/plataformas"
             ancho="ancho"
+            orden={0}
           >
             <GraficaBarras
               categorias={plataformas.categorias}
@@ -596,8 +756,9 @@ export default function PaginaDashboard() {
               cargando={consultaPlataformas.cargando || esperandoNombresCatalogo}
               error={consultaPlataformas.error}
               alReintentar={consultaPlataformas.reintentar}
-              etiquetaAria={`Gráfica de barras agrupadas. Eje horizontal: plataformas; eje vertical: número de usuarios e interacciones. ${frases.plataformas}`}
+              etiquetaAria={`Gráfica de barras agrupadas. Eje horizontal: plataformas; eje vertical: número de interacciones y de usuarios. ${frases.plataformas}`}
               tabla={plataformas.tabla}
+              fuente="GET /api/metricas/plataformas"
             />
           </TarjetaSeccion>
 
@@ -611,20 +772,46 @@ export default function PaginaDashboard() {
             }
             resumen={frases.tipos}
             esperandoResumen={consultaTipos.cargando}
-            fuente="GET /api/metricas/tipos"
             ancho="angosto"
+            orden={1}
           >
             <GraficaDona
               datos={tipos.dona}
               nombreSerie="Interacciones"
               total={consultaTipos.datos?.total ?? null}
               leyendaTotal="interacciones"
-              altura="320px"
+              altura="330px"
               cargando={consultaTipos.cargando}
               error={consultaTipos.error}
               alReintentar={consultaTipos.reintentar}
               etiquetaAria={`Gráfica de dona con el porcentaje de interacciones de cada tipo. ${frases.tipos}`}
               tabla={tipos.tabla}
+              fuente="GET /api/metricas/tipos"
+            />
+          </TarjetaSeccion>
+
+          <TarjetaSeccion
+            id="seccion-actividad"
+            titulo="Actividad por día y hora"
+            subtitulo={`Interacciones por hora de cada día de la semana, en hora ${consultaActividad.datos?.zona_horaria || 'UTC'}. La celda con más interacciones lleva contorno.`}
+            resumen={frases.actividad}
+            esperandoResumen={consultaActividad.cargando}
+            ancho="completo"
+          >
+            <GraficaMapaCalor
+              etiquetasHorizontal={actividad.horizontal}
+              etiquetasVertical={actividad.vertical}
+              tituloHorizontal={actividad.titulo}
+              nombreMetrica="Interacciones"
+              celdas={actividad.celdas}
+              gama={tema.gamaActividad}
+              altura={`${actividad.filas * ALTO_FILA_CALOR + 110}px`}
+              cargando={consultaActividad.cargando}
+              error={consultaActividad.error}
+              alReintentar={consultaActividad.reintentar}
+              etiquetaAria={`Mapa de calor. Eje horizontal: hora del día; eje vertical: día de la semana; color: número de interacciones. ${frases.actividad}`}
+              tabla={actividad.tabla}
+              fuente="GET /api/metricas/actividad"
             />
           </TarjetaSeccion>
 
@@ -633,12 +820,12 @@ export default function PaginaDashboard() {
             titulo="Temas"
             subtitulo={
               vistaTemas === 'sentimiento'
-                ? 'Sentimiento promedio por tema, de -1 (negativo) a 1 (positivo).'
+                ? 'Sentimiento promedio por tema, de -1 (rojo, negativo) a 1 (verde, positivo).'
                 : 'Interacciones por tema, en número de registros.'
             }
             resumen={frases.temas}
             esperandoResumen={consultaTemas.cargando || esperandoNombresCatalogo}
-            fuente="GET /api/metricas/temas"
+            orden={0}
           >
             <div className="controles-tarjeta">
               <ControlSegmentado
@@ -661,7 +848,7 @@ export default function PaginaDashboard() {
               series={temas.series}
               horizontal
               decimales={temas.decimales}
-              altura="330px"
+              altura="340px"
               cargando={consultaTemas.cargando || esperandoNombresCatalogo}
               error={consultaTemas.error}
               alReintentar={consultaTemas.reintentar}
@@ -669,6 +856,7 @@ export default function PaginaDashboard() {
                 vistaTemas === 'sentimiento' ? 'sentimiento promedio' : 'número de interacciones'
               }. ${frases.temas}`}
               tabla={temas.tabla}
+              fuente="GET /api/metricas/temas"
             />
           </TarjetaSeccion>
 
@@ -682,74 +870,47 @@ export default function PaginaDashboard() {
             }
             resumen={frases.etiquetas}
             esperandoResumen={consultaEtiquetas.cargando}
-            fuente="GET /api/metricas/etiquetas"
+            orden={1}
           >
             <GraficaBarras
               categorias={etiquetas.categorias}
               series={etiquetas.series}
               horizontal
-              altura="330px"
+              altura="340px"
               cargando={consultaEtiquetas.cargando}
               error={consultaEtiquetas.error}
               alReintentar={consultaEtiquetas.reintentar}
               etiquetaAria={`Gráfica de barras horizontales. Eje vertical: etiquetas; eje horizontal: número de interacciones. ${frases.etiquetas}`}
               tabla={etiquetas.tabla}
+              fuente="GET /api/metricas/etiquetas"
             />
-          </TarjetaSeccion>
-
-          <TarjetaSeccion
-            id="seccion-actividad"
-            titulo="Actividad por día y hora"
-            subtitulo={`Interacciones por hora de cada día de la semana, en hora ${consultaActividad.datos?.zona_horaria || 'UTC'}.`}
-            resumen={frases.actividad}
-            esperandoResumen={consultaActividad.cargando}
-            fuente="GET /api/metricas/actividad"
-            ancho="completo"
-          >
-            <div className="desplazable">
-              <div className="desplazable__interno">
-                <GraficaMapaCalor
-                  etiquetasHorizontal={actividad.horizontal}
-                  etiquetasVertical={actividad.vertical}
-                  tituloHorizontal={actividad.titulo}
-                  nombreMetrica="Interacciones"
-                  celdas={actividad.celdas}
-                  altura="340px"
-                  cargando={consultaActividad.cargando}
-                  error={consultaActividad.error}
-                  alReintentar={consultaActividad.reintentar}
-                  etiquetaAria={`Mapa de calor. Eje horizontal: hora del día; eje vertical: día de la semana; color: número de interacciones. ${frases.actividad}`}
-                  tabla={actividad.tabla}
-                />
-              </div>
-            </div>
           </TarjetaSeccion>
         </div>
       </section>
 
       {/* Geografía: solo usuarios con consentimiento ---------------------------------- */}
-      <section className="grupo" aria-labelledby="grupo-geografia">
+      <section id="grupo-geografia" className="grupo" aria-labelledby="grupo-geografia-titulo">
         <EncabezadoGrupo id="grupo-geografia" titulo="Geografía." complemento="Solo usuarios con consentimiento." />
         <div className="bento">
           <TarjetaSeccion
             id="seccion-puntos-calientes"
             titulo="Puntos calientes"
-            subtitulo={`Usuarios por cuadro de ${pc?.tamano_cuadro ?? 0.2}° (unos 22 km por lado). Selecciona un cuadro para ver cuántos usuarios tiene.`}
+            subtitulo={`Usuarios por cuadro de ${pc?.tamano_cuadro ?? 0.2}° (unos 22 km por lado). De lejos, cada cuadro es una burbuja; desde el zoom 7 se ve el cuadro exacto. Selecciona uno para ver cuántos usuarios tiene.`}
             resumen={frases.puntos}
             esperandoResumen={consultaPuntosCalientes.cargando}
             insignias={['Solo con consentimiento', `Cuadros con ${pc?.minimo_por_cuadro ?? 3} usuarios o más`]}
-            fuente="GET /api/metricas/puntos-calientes"
             ancho="completo"
           >
             <MapaPuntosCalientes
               datos={pc?.datos ?? null}
               tamanoCuadro={pc?.tamano_cuadro ?? 0.2}
-              altura="440px"
+              altura="480px"
               cargando={consultaPuntosCalientes.cargando}
               error={consultaPuntosCalientes.error}
               alReintentar={consultaPuntosCalientes.reintentar}
-              etiquetaAria={`Mapa interactivo con cuadros de ${pc?.tamano_cuadro ?? 0.2} grados; el color indica cuántos usuarios hay en cada cuadro. ${frases.puntos}`}
+              etiquetaAria={`Mapa interactivo con cuadros de ${pc?.tamano_cuadro ?? 0.2} grados; el color y el tamaño indican cuántos usuarios hay en cada cuadro. ${frases.puntos}`}
               tabla={tablaPuntos}
+              fuente="GET /api/metricas/puntos-calientes"
             />
           </TarjetaSeccion>
 
@@ -763,11 +924,13 @@ export default function PaginaDashboard() {
             }
             resumen={frases.geografia}
             esperandoResumen={consultaGeografia.cargando}
-            insignias={consultaGeografia.datos ? ['Solo con consentimiento', `Grupos con ${consultaGeografia.datos.minimo_por_grupo} usuarios o más`] : ['Solo con consentimiento']}
-            fuente="GET /api/metricas/geografia"
+            insignias={
+              consultaGeografia.datos
+                ? ['Solo con consentimiento', `Grupos con ${consultaGeografia.datos.minimo_por_grupo} usuarios o más`]
+                : ['Solo con consentimiento']
+            }
             ancho="completo"
-          >
-            <div className="controles-tarjeta">
+            accion={
               <ControlSegmentado
                 etiqueta="Agrupar por"
                 valor={nivelGeografia}
@@ -777,7 +940,8 @@ export default function PaginaDashboard() {
                   { valor: 'ciudades', texto: 'Ciudades' },
                 ]}
               />
-            </div>
+            }
+          >
             <GraficaBarras
               categorias={geografia.categorias}
               series={geografia.series}
@@ -790,13 +954,14 @@ export default function PaginaDashboard() {
                 nivelGeografia === 'ciudades' ? 'ciudades' : 'estados'
               }; eje horizontal: usuarios con consentimiento. ${frases.geografia}`}
               tabla={geografia.tabla}
+              fuente="GET /api/metricas/geografia"
             />
           </TarjetaSeccion>
         </div>
       </section>
 
       {/* Usuarios: el padrón de TiDB -------------------------------------------------- */}
-      <section className="grupo" aria-labelledby="grupo-usuarios">
+      <section id="grupo-usuarios" className="grupo" aria-labelledby="grupo-usuarios-titulo">
         <EncabezadoGrupo id="grupo-usuarios" titulo="Usuarios." complemento="Cómo es el padrón." />
         <div className="bento">
           <TarjetaSeccion
@@ -805,8 +970,8 @@ export default function PaginaDashboard() {
             subtitulo="Porcentaje del padrón según los días desde su última actividad."
             resumen={frases.estatus}
             esperandoResumen={consultaEstatus.cargando}
-            fuente="GET /api/metricas/estatus"
             ancho="tercio"
+            orden={0}
           >
             <GraficaDona
               datos={estatus.dona}
@@ -819,6 +984,7 @@ export default function PaginaDashboard() {
               alReintentar={consultaEstatus.reintentar}
               etiquetaAria={`Gráfica de dona con el porcentaje de usuarios por estatus. ${frases.estatus}`}
               tabla={estatus.tabla}
+              fuente="GET /api/metricas/estatus"
             />
           </TarjetaSeccion>
 
@@ -828,8 +994,8 @@ export default function PaginaDashboard() {
             subtitulo="Usuarios por rango de edad, en años."
             resumen={frases.edad}
             esperandoResumen={consultaDemografia.cargando}
-            fuente="GET /api/metricas/demografia"
             ancho="tercio"
+            orden={1}
           >
             <GraficaBarras
               categorias={demografia.edad.categorias}
@@ -840,6 +1006,7 @@ export default function PaginaDashboard() {
               alReintentar={consultaDemografia.reintentar}
               etiquetaAria={`Gráfica de barras. Eje horizontal: rango de edad; eje vertical: número de usuarios. ${frases.edad}`}
               tabla={demografia.edad.tabla}
+              fuente="GET /api/metricas/demografia"
             />
           </TarjetaSeccion>
 
@@ -849,8 +1016,8 @@ export default function PaginaDashboard() {
             subtitulo="Usuarios por interés principal."
             resumen={frases.interes}
             esperandoResumen={consultaDemografia.cargando}
-            fuente="GET /api/metricas/demografia"
             ancho="tercio"
+            orden={2}
           >
             <GraficaBarras
               categorias={demografia.interes.categorias}
@@ -862,40 +1029,36 @@ export default function PaginaDashboard() {
               alReintentar={consultaDemografia.reintentar}
               etiquetaAria={`Gráfica de barras horizontales. Eje vertical: interés principal; eje horizontal: número de usuarios. ${frases.interes}`}
               tabla={demografia.interes.tabla}
+              fuente="GET /api/metricas/demografia"
             />
           </TarjetaSeccion>
 
           <TarjetaSeccion
             id="seccion-demografia"
             titulo="Edad e interés"
-            subtitulo="Usuarios por rango de edad e interés principal. Sin datos de ubicación."
+            subtitulo="Usuarios por rango de edad e interés principal. Sin datos de ubicación. La combinación más común lleva contorno."
             resumen={frases.cruce}
             esperandoResumen={consultaDemografia.cargando}
-            fuente="GET /api/metricas/demografia"
             ancho="completo"
           >
-            <div className="desplazable">
-              <div className="desplazable__interno desplazable__interno--angosto">
-                <GraficaMapaCalor
-                  etiquetasHorizontal={demografia.cruce.horizontal}
-                  etiquetasVertical={demografia.cruce.vertical}
-                  tituloHorizontal="Rango de edad"
-                  nombreMetrica="Usuarios"
-                  celdas={demografia.cruce.celdas}
-                  altura="380px"
-                  cargando={consultaDemografia.cargando}
-                  error={consultaDemografia.error}
-                  alReintentar={consultaDemografia.reintentar}
-                  etiquetaAria={`Mapa de calor. Eje horizontal: rango de edad; eje vertical: interés principal; color: número de usuarios. ${frases.cruce}`}
-                  tabla={demografia.cruce.tabla}
-                />
-              </div>
-            </div>
+            <GraficaMapaCalor
+              etiquetasHorizontal={demografia.cruce.horizontal}
+              etiquetasVertical={demografia.cruce.vertical}
+              tituloHorizontal="Rango de edad"
+              nombreMetrica="Usuarios"
+              celdas={demografia.cruce.celdas}
+              gama={tema.gamaCruce}
+              altura={`${filasCruce * ALTO_FILA_CALOR + 110}px`}
+              cargando={consultaDemografia.cargando}
+              error={consultaDemografia.error}
+              alReintentar={consultaDemografia.reintentar}
+              etiquetaAria={`Mapa de calor. Eje horizontal: rango de edad; eje vertical: interés principal; color: número de usuarios. ${frases.cruce}`}
+              tabla={demografia.cruce.tabla}
+              fuente="GET /api/metricas/demografia"
+            />
           </TarjetaSeccion>
         </div>
       </section>
-
-      <AvisoFlotante cambio={ultimoCambio} />
     </div>
   );
 }

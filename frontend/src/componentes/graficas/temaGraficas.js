@@ -24,6 +24,19 @@ function elegir(nombre, columna) {
   return COLORES[nombre][columna];
 }
 
+function aRgb(hex) {
+  const h = hex.replace('#', '');
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+
+// Mezcla lineal entre dos colores hex (t de 0 a 1)
+export function interpolar(desde, hasta, t) {
+  const a = aRgb(desde);
+  const b = aRgb(hasta);
+  const k = Math.max(0, Math.min(1, t));
+  return `#${a.map((v, i) => Math.round(v + (b[i] - v) * k).toString(16).padStart(2, '0')).join('')}`;
+}
+
 export function useTemaGraficas() {
   const { oscuro, altoContraste, reducirMovimiento } = usePreferenciasSistema();
 
@@ -46,7 +59,10 @@ export function useTemaGraficas() {
       fuente:
         '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif',
       color,
-      categoria: (indice) => color(ORDEN_CATEGORIAS[((indice % ORDEN_CATEGORIAS.length) + ORDEN_CATEGORIAS.length) % ORDEN_CATEGORIAS.length]),
+      categoria: (indice) =>
+        indice < 0
+          ? color('gris')
+          : color(ORDEN_CATEGORIAS[indice % ORDEN_CATEGORIAS.length]),
       estatus: {
         activo: color('verde'),
         en_riesgo: color('naranja'),
@@ -54,6 +70,15 @@ export function useTemaGraficas() {
       },
       // Mapas de calor: una sola gama del azul (de #E5F1FF a #0071E3; en oscuro, del azul hundido al azul de sistema)
       gamaCalor: oscuro ? ['#12263d', '#0b4f9c', '#0091FF'] : ['#E5F1FF', '#7DB8FF', '#0071E3'],
+      // §8.4: actividad en azul → cian; edad × interés en índigo → rosa (para distinguirlos)
+      gamaActividad: oscuro ? ['#123a5c', '#0a7fd6', '#3CD3FE'] : ['#DCEBFF', '#3D9BFF', '#00A3C4'],
+      gamaCruce: oscuro ? ['#2a2557', '#6D7CFF', '#FF375F'] : ['#ECEAFE', '#6155F5', '#E7124D'],
+      // Sentimiento divergente: rojo (−1) → gris (0) → verde (+1)
+      colorSentimiento: (valor) => {
+        const v = Math.max(-1, Math.min(1, Number(valor) || 0));
+        const neutro = oscuro ? '#636366' : '#aeaeb2';
+        return v < 0 ? interpolar(neutro, color('rojo'), -v) : interpolar(neutro, color('verde'), v);
+      },
     };
   }, [altoContraste, oscuro, reducirMovimiento]);
 }
