@@ -43,4 +43,17 @@ Mapa de calor: interacciones por `dia_semana` (1 = lunes … 7 = domingo) y `hor
 
 ## Cómo cambian con altas, cambios y bajas
 
-Se completa en F6-01, cuando exista el CRUD (F4-01) y los eventos del WebSocket.
+El CRUD (F4-01) solo escribe interacciones en Capella. Las consultas usan `request_plus`, así que cada cambio se ve en la siguiente petición. Después de cada alta, cambio o baja exitosa, `/ws/metricas` manda el resumen nuevo; el dashboard vuelve a pedir las demás métricas.
+
+| Indicador | Alta (`POST`) | Cambio (`PUT`) | Baja (`DELETE`) |
+|---|---|---|---|
+| `interacciones` | +1 | igual | −1 |
+| `usuarios_que_interactuan` | +1 si es la primera del usuario | puede cambiar si cambia `id_usuario` | −1 si era la última del usuario |
+| `sentimiento_promedio` (resumen y por tema) | se recalcula con el nuevo valor | se recalcula | se recalcula sin ella |
+| `plataformas.interacciones` | +1 en su `canal` | pasa de un canal a otro si cambia | −1 en su `canal` |
+| `temas.interacciones` | +1 en su `tema` | pasa de un tema a otro si cambia | −1 en su `tema` |
+| `actividad` | +1 en la celda de su `timestamp` | cambia de celda si cambia `timestamp` | −1 en su celda |
+| `usuarios`, `usuarios_activos`, `porcentaje_activos`, `usuarios_con_consentimiento`, `estatus`, `geografia` | no cambian | no cambian | no cambian |
+| `en_cuarentena` | no cambia: un dato inválido da `422` y no se guarda | no cambia | no cambia |
+
+`estatus` y `ultima_actividad` de TiDB los calculó el ETL. Una interacción creada desde la API no los recalcula.

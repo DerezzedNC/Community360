@@ -194,3 +194,8 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Para la demostración: en el puerto 8000 seguía corriendo una API v0.4 de antes de estos cambios; hay que cerrarla y levantar la actual (`backend/README.md`). En Postman, volver a importar colección y entorno (hay variables nuevas) y correr las carpetas Fase 3, Fase 4 · Consultas y Fase 4 · CRUD con las cuentas reales. El WebSocket se prueba a mano (`postman/README.md`).
 - Pendiente de [CC]: F6-01 (completar en `INDICADORES.md` cómo cambian los indicadores con altas, cambios y bajas). Ya tiene su dependencia (F4-02e) en `hecho`; no estaba en esta lista.
 - Aviso →AG: tienen disponibles F4-03b a F4-03e y F5-02 con el contrato v0.11. Nada del backend cambia sin subir la versión del contrato.
+
+## 2026-11-25 · [CC] · F6-01 Indicadores dinámicos y guion de demostración
+- Qué cambió: `docs/INDICADORES.md` explica cómo cambia cada indicador con un alta, un cambio o una baja de interacciones. Solo cambian los que salen de Capella; los de usuarios, estatus, geografía y cuarentena no cambian. Nuevo `docs/DEMO.md`: guion de 10 pasos con la captura de cada paso y lo que no debe salir en ella.
+- Cómo se prueba: no aplica (documentos). El guion usa la colección actual de Postman.
+- Aviso →AG: para F6-02, al recibir `metricas.actualizadas` actualizar las gráficas de plataformas, temas y actividad; estatus y geografía no cambian con el CRUD. El paso 9 de `docs/DEMO.md` espera ver la tarjeta del resumen cambiando sin recargar.

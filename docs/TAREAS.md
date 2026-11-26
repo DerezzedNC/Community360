@@ -43,13 +43,13 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F5-01 | [CC] | Servidor `/ws/metricas` autenticado y difusión del resumen | F4-01 | hecho |
-| F5-02 | [AG] | Cliente WebSocket y actualización de gráficas sin recargar | F5-01 | pendiente |
+| F5-02 | [AG] | Cliente WebSocket y actualización de gráficas sin recargar | F5-01 | en curso |
 
 ## Fase 6 · Dashboard (se detalla al cerrar la Fase 5)
 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
-| F6-01 | [CC] | `docs/INDICADORES.md` completo: indicadores dinámicos y cómo cambian con altas, cambios y bajas (parte de la versión de F4-02c) | F4-02e | pendiente |
+| F6-01 | [CC] | `docs/INDICADORES.md` completo: indicadores dinámicos y cómo cambian con altas, cambios y bajas (parte de la versión de F4-02c) | F4-02e | hecho |
 | F6-02 | [AG] | Gráficas de barras, dona y mapa de calor, diseño responsivo | F5-02, F6-01 | pendiente |
 
 ## Verificaciones pendientes
