@@ -164,3 +164,69 @@ Pila: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "S
 
 ## 7. Reglas que no cambian
 Solo estilo y presentación. No se tocan las llamadas a la API, el WebSocket, la sesión, las rutas protegidas, la privacidad ni los filtros en la URL. Sin datos fijos ni formularios de CRUD. Contraste mínimo WCAG AA: el texto pequeño usa `--texto` o `--texto-2` (`#6e6e73`); `#86868b` solo en texto grande o en modo oscuro.
+
+## 8. Rediseño v2 · De "bonito y estático" a "vivo" (F7-02)
+
+Diagnóstico de la versión F7-01 (revisada en escritorio 1366 px y móvil 375 px, claro y oscuro):
+- Todas las tarjetas pesan igual y la página mide unos 7 900 px: no hay ritmo ni un punto focal.
+- El login y el encabezado son texto sobre fondo plano; no hay identidad visual.
+- Lo "en vivo" solo se nota porque un número cambia; no hay pulso, historial ni resaltado del cambio.
+- Casi todo es azul: temas, etiquetas y mapas de calor se ven iguales.
+- El mapa a escala mundial muestra puntos diminutos; no se leen como "puntos calientes".
+- Errores puntuales: los dos mapas de calor tienen barra de desplazamiento interna; la barra dice "En vivo" en Métricas y "Servicio disponible" en Usuarios y Cuarentena; en el padrón la ubicación se corta; "en vivo" se repite dentro de cada KPI.
+
+Regla de oro: todo lo que se mueva o resalte sale de datos reales (API o eventos del WebSocket de la sesión). Lo único decorativo son fondos sin números.
+
+### 8.1 Identidad y fondos (login y encabezado)
+- **Fondo "aurora"**: degradado de malla con 3 o 4 manchas difusas (`radial-gradient` grandes con `filter: blur(80px)`) en azul `#0071e3`, índigo `#6155F5`, cian `#00C0E8` y un toque rosa `#FF2D55`, que se mueven muy lento (ciclo de 20 a 30 s). Encima, una retícula de puntos tenue (patrón SVG o `radial-gradient` de 1 px cada 24 px) que evoca un mapa o una red, y un grano fino al 3 %. Decorativo, sin números. Estático con `prefers-reduced-motion`.
+- **Login en dos columnas** (una en móvil): a la izquierda la marca y una frase a dos tonos, "COMMUNITY 360. Tu comunidad, en tiempo real.", con tres puntos breves con ícono: "En vivo · WebSocket", "Privado · ubicación solo con consentimiento", "Seguro · sesión cifrada". A la derecha, la tarjeta de vidrio sobre la aurora.
+- **Login, detalles:** botón para mostrar u ocultar la contraseña; aviso de Bloq Mayús activado; el botón muestra un indicador de carga mientras entra; el error aparece bajo el campo con una sacudida breve (sin movimiento si se pide reducirlo); y una píldora de estado real con `GET /api/health` (pública): "Servicios: TiDB ● Capella ●" en verde o gris.
+- **El encabezado del dashboard** usa la misma aurora, más tenue, que se desvanece hacia el fondo: continuidad entre login y panel.
+
+### 8.2 Sensación de "en vivo" (con eventos reales)
+- **Números que cuentan:** al cargar y al cambiar, los KPI animan del valor anterior al nuevo (0.6 s, `tabular-nums`). Al llegar un evento, la tarjeta afectada muestra un chip temporal "+1" o "−1" en verde o rojo durante 4 s.
+- **Panel "Actividad reciente"**: lista de los eventos `metricas.actualizadas` recibidos en esta sesión (en memoria, máximo 10): ícono por tipo de cambio, "Interacción creada · I000123 · hace 12 s". Vacío: "Sin cambios desde que abriste el panel. Envía una petición desde Postman para verla aquí."
+- **Mini gráfica de la sesión**: línea pequeña dentro del KPI de interacciones con el total en cada evento recibido desde que se abrió el panel (datos reales de la sesión, no historia inventada). Con un solo punto se muestra solo el número.
+- **Resaltado del cambio en gráficas:** al actualizar, la barra, el segmento o la celda cuyo valor cambió se ilumina 1.5 s (comparando datos anterior y nuevo).
+- **Indicador de conexión** con punto que "respira" (animación suave de opacidad) y el mismo texto en todas las vistas: "En vivo" / "Reconectando…" / "Sin conexión".
+- **"Actualizar en vivo"**: ícono que gira mientras espera y una palomita breve al recibir respuesta.
+
+### 8.3 Ritmo y navegación
+- **Índice de secciones fijo** bajo la barra (control segmentado en píldora): Resumen · Interacciones · Geografía · Usuarios, que marca la sección visible al desplazarse (IntersectionObserver) y lleva a ella con desplazamiento suave.
+- **Rejilla bento con jerarquía:** fila 1, KPI "Interacciones" grande (2 columnas, con su mini gráfica) más "Actividad reciente" al lado; luego KPI pequeños agrupados en "En vivo" (interacciones, usuarios que interactúan, sentimiento) y "Padrón" (usuarios, activos, consentimiento, cuarentena), con una etiqueta por grupo en lugar de repetir "en vivo" en cada tarjeta.
+- **Tarjetas de distinto tamaño:** plataformas y tipos lado a lado; actividad y mapa a lo ancho y más altos; estatus, edad e interés en tres columnas.
+- **Entrada progresiva:** las tarjetas aparecen al entrar en pantalla (opacidad y 12 px hacia arriba, escalonadas 60 ms) y las gráficas animan su dibujo solo cuando se ven.
+- **Transición entre vistas** (Métricas, Usuarios, Cuarentena): fundido de 200 ms.
+- **"Fuente: GET /api/…"** pasa a una línea pequeña en monoespaciada dentro del pie de "Ver datos": sigue sirviendo como evidencia sin ensuciar cada tarjeta.
+
+### 8.4 Color con significado
+- Plataformas, tipos, temas y etiquetas usan la paleta categórica de la sección 1 (un color fijo por código del catálogo, el mismo en todas las gráficas), no solo azul.
+- Mapa de calor de actividad: escala azul → cian; la celda máxima con contorno y su valor visible.
+- Mapa de calor edad × interés: escala índigo → rosa, para distinguirlo del de actividad.
+- Sentimiento: escala divergente rojo (−1) → gris (0) → verde (+1) en la vista de sentimiento de Temas.
+
+### 8.5 Mapa de puntos calientes
+- Al cargar, encuadra los datos (no el mundo entero); botón "Ver todo".
+- Fondo atenuado según el modo: CARTO Positron en claro y Dark Matter en oscuro, con su atribución.
+- Con zoom lejano, cada cuadro se dibuja como **burbuja** con tamaño y brillo proporcionales a sus usuarios (efecto de calor con `box-shadow` o un halo SVG); al acercar (zoom 7 o más) se ve el rectángulo exacto de 0.2°. Se mantiene el tope de zoom 11 y nunca se muestran puntos individuales.
+- Al seleccionar: contorno, globo con "96 usuarios · cuadro de 0.2°" y el resto atenuado.
+- Junto al mapa, un ranking de los 5 cuadros con más usuarios, que al hacer clic centra el mapa.
+
+### 8.6 Tablas y detalle
+- Encabezado fijo al desplazar; filas con hover suave; círculo con las iniciales del alias (color derivado del texto del alias); estatus en píldora con punto y texto.
+- Ubicación en dos líneas (ciudad arriba; estado y país abajo, en gris) en lugar de cortarla.
+- Paginación en píldora: "1–50 de 1,068", anterior y siguiente.
+- El detalle se abre como **hoja lateral** que entra desde la derecha (en móvil, desde abajo), con secciones "Perfil", "Actividad" y "Ubicación" (o "Sin consentimiento").
+- Cuarentena: los motivos con colores de la paleta (texto + color) y el registro original en un bloque monoespaciado legible.
+- Estados vacíos con un dibujo SVG simple propio y una acción ("Quitar filtros").
+
+### 8.7 Microinteracciones y acabados
+- Botones con estado presionado (escala 0.97) y foco visible con anillo azul de 3 px para teclado.
+- Tarjetas con elevación al pasar el mouse solo en escritorio.
+- Esqueletos de carga con brillo suave que recorre la forma de cada gráfica.
+- Avisos flotantes apilados (máximo 3) para los eventos del WebSocket, que se pueden cerrar.
+- KPI en móvil: carrusel con `scroll-snap` y un desvanecido en el borde derecho que indique que hay más.
+- Corregir: quitar el desplazamiento interno de los mapas de calor (altura según el número de filas) y unificar el texto del indicador de conexión.
+
+### 8.8 Lo que no se hace
+Sin datos inventados ni historia simulada, sin formularios de CRUD, sin logos de Apple, Raycast ni de las plataformas (Telegram, Discord, etc.; solo su nombre en texto), y sin tocar la lógica de API, WebSocket, sesión, privacidad ni filtros.

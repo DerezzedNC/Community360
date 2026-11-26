@@ -64,6 +64,7 @@ Cambio de rol temporal: en F7-01 **[CC] trabaja en `frontend/`** y **[AG] no lo 
 | ID | Equipo | Tarea | Depende de | Estado |
 |---|---|---|---|---|
 | F7-01 | [CC] | Rediseño visual del frontend según `docs/DISENO.md` (incluidas las reglas de las HIG de la sección 6) y fondo atenuado CARTO Positron en el mapa, sin cambiar API, WebSocket, sesión, rutas, privacidad ni filtros en la URL. **En revisión:** se une a `main` solo cuando Angel lo apruebe | F6-07 | hecho |
+| F7-02 | [CC] | Rediseño v2 según `docs/DISENO.md` §8: errores de 8.7, sensación de en vivo, aurora y login en dos columnas, índice y bento con jerarquía, colores fijos por código, mapa con burbujas y ranking, tablas y hoja lateral. **En revisión:** se une a `main` solo cuando Angel lo apruebe | F7-01 | hecho |
 
 ## Verificaciones pendientes
 
