@@ -177,3 +177,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: `pytest` sin nube, 226 de 226. Con WARP apagado pasaron las pruebas `nube` de cuarentena y del CRUD: crea, edita y borra su propia interacción en Capella real, y las métricas ven el cambio al momento. Después siguen 203 interacciones, ninguna creada por la API.
 - Cómo se prueba: reiniciar la API; Postman, carpeta **Fase 4 · CRUD (admin)** → 25 a 31. La 26 crea su propia interacción y 28 a 30 solo tocan esa. El entorno tiene 3 variables nuevas (`c360_id_sin_consentimiento`, `c360_id_interaccion`, `c360_interaccion_json`): hay que volver a importarlo.
 - Aviso →AG: nada que conectar en el dashboard, que sigue siendo de solo lectura. Las métricas cambian cuando se crea, edita o borra una interacción desde Postman; en la Fase 5 llegarán por WebSocket.
+
+
+## 2026-11-25 · [AG] · F4-03e
+- Qué cambió: vista histórica de cuarentena en `VistaCuarentena.jsx` conectada a `GET /api/cuarentena` (Contrato v0.9), con filtro sincronizado en la URL para los 5 valores válidos de `motivo` (`duplicado`, `tipo_dato_invalido`, `categoria_invalida`, `usuario_inexistente`, `fecha_anterior_ingreso`), paginación con `PaginacionTabla.jsx` y modal de solo lectura que muestra el objeto `registro` tal cual llega de la API (sin campos geográficos).
+- Cómo se prueba: en `http://localhost:5173/dashboard/cuarentena`, probar el filtro por motivo, cambio de página, botón `"Ver registro"` y reintento ante `503`.
+- PETICIÓN →CC / →AG (si aplica): ninguna. Con esto quedan completadas todas las tareas `[AG]` de la Fase 4 (`F4-00` y `F4-03a` a `F4-03e`).

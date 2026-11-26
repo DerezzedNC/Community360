@@ -1008,6 +1008,43 @@ body {
   color: var(--color-texto);
 }
 
+.grupo-motivos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.insignia-motivo {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+.etiqueta-bloque-json {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-texto-secundario);
+}
+
+.bloque-json {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radio-medio);
+  background-color: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
 /* Vista de inicio de sesión */
 .contenedor-centrado {
   min-height: 100vh;

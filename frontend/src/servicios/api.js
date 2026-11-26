@@ -153,3 +153,14 @@ export async function consultarMetricasTemas(senal) {
 export async function consultarMetricasActividad(senal) {
   return peticionApi('/api/metricas/actividad', { senal });
 }
+
+export async function consultarCuarentena(parametros = {}, senal) {
+  const { pagina = 1, limite = 50, motivo = '' } = parametros;
+  const busqueda = new URLSearchParams();
+  busqueda.set('pagina', String(pagina));
+  busqueda.set('limite', String(limite));
+  if (motivo) {
+    busqueda.set('motivo', motivo);
+  }
+  return peticionApi(`/api/cuarentena?${busqueda.toString()}`, { senal });
+}
