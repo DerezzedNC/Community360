@@ -231,3 +231,12 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué hace: `GET /api/metricas/demografia` (TiDB): `total`, `rangos_edad` (de menor a mayor edad, con `descripcion`), `intereses` (interés principal, con `nombre`) y `cruce` rango × interés (solo combinaciones con usuarios). No usa ubicación. Contrato v0.15; fórmulas en `INDICADORES.md`.
 - Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_metricas.py` (con `-m nube`: `total` y la suma del cruce son iguales a `usuarios` del resumen). Postman 36.
 - Aviso →AG: barras por rango y por interés, y mapa de calor con `cruce` (las combinaciones que faltan son 0). No cambia con el CRUD.
+
+## 2026-11-25 · [CC] · Cierre de F6-03 a F6-06
+- Estado: contrato v0.15. `pytest` completo, 261 de 261, incluidas las 7 pruebas `nube` contra TiDB y Capella reales. Las que escriben crean y borran su propia interacción; al terminar siguen 203 interacciones, ninguna creada por la API. `docs/DEMO.md` actualizado: el paso 7 muestra el mapa de puntos calientes y el 9 el WebSocket bidireccional.
+- Para la demostración: reiniciar la API (rutas nuevas) y volver a importar la colección de Postman (carpeta nueva **Fase 6 · Métricas adicionales**, 32 a 37; el entorno no cambia).
+- **Aviso →AG, formatos nuevos (detalle en el contrato):**
+  - `GET /api/metricas/puntos-calientes` → `{"tamano_cuadro": 0.2, "minimo_por_cuadro": 3, "usuarios_con_coordenadas", "usuarios_en_mapa", "datos": [{"latitud_centro", "longitud_centro", "usuarios"}]}`. Mapa de calor geográfico; no cambia con el CRUD. Mostrar solo lo que llega (no interpolar a menos de un cuadro).
+  - `GET /api/metricas/tipos` → `{"total", "datos": [{"tipo", "nombre", "interacciones", "porcentaje"}]}` y `GET /api/metricas/etiquetas` → `{"limite": 10, "datos": [{"etiqueta", "nombre", "interacciones"}]}`. Cambian con el CRUD: volver a pedirlas con `metricas.actualizadas`.
+  - `GET /api/metricas/demografia` → `{"total", "rangos_edad": [{"rango_edad", "descripcion", "usuarios", "porcentaje"}], "intereses": [{"interes", "nombre", "usuarios", "porcentaje"}], "cruce": [{"rango_edad", "interes", "usuarios"}]}`. No cambia con el CRUD.
+  - WebSocket: `metricas.actualizadas` y `metricas.no_disponibles` traen `cambio` (`{"tipo": "creada" | "editada" | "borrada", "id_interaccion"}` o `null`). El cliente puede mandar `{"accion": "actualizar"}`; un mensaje desconocido recibe `{"evento": "error", "datos": {"detail"}}` sin cerrar.
