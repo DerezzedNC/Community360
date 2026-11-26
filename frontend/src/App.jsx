@@ -5,12 +5,14 @@ import RutaProtegida from './componentes/RutaProtegida';
 import PaginaLogin from './paginas/PaginaLogin';
 
 const PaginaDashboard = lazy(() => import('./paginas/PaginaDashboard'));
+const VistaUsuarios = lazy(() => import('./paginas/VistaUsuarios'));
+const VistaCuarentena = lazy(() => import('./paginas/VistaCuarentena'));
 
 function CargandoVista() {
   return (
     <div className="estado-grafica" role="status" aria-live="polite">
       <span className="indicador-carga" aria-hidden="true" />
-      <p className="estado-grafica__texto">Cargando secciones del panel…</p>
+      <p className="estado-grafica__texto">Cargando vista…</p>
     </div>
   );
 }
@@ -28,6 +30,22 @@ export default function App() {
               element={
                 <Suspense fallback={<CargandoVista />}>
                   <PaginaDashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="usuarios"
+              element={
+                <Suspense fallback={<CargandoVista />}>
+                  <VistaUsuarios />
+                </Suspense>
+              }
+            />
+            <Route
+              path="cuarentena"
+              element={
+                <Suspense fallback={<CargandoVista />}>
+                  <VistaCuarentena />
                 </Suspense>
               }
             />

@@ -72,25 +72,6 @@ export default function PaginaDashboard() {
           celdas={null}
         />
       </TarjetaSeccion>
-
-      <TarjetaSeccion
-        id="seccion-usuarios"
-        titulo="Padrón de usuarios"
-        descripcion="Consulta de solo lectura del padrón paginado y su detalle, respetando la omisión de ubicación sin consentimiento."
-        rutaApi="GET /api/usuarios"
-        insigniaPrivacidad="Ubicación según consentimiento"
-        anchoCompleto
-        pendienteConexion
-      />
-
-      <TarjetaSeccion
-        id="seccion-cuarentena"
-        titulo="Cuarentena"
-        descripcion="Consulta de solo lectura de registros rechazados durante las reglas de validación."
-        rutaApi="GET /api/cuarentena"
-        anchoCompleto
-        pendienteConexion
-      />
     </div>
   );
 }

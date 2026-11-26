@@ -147,3 +147,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: `pytest` sin nube, 204 de 204. La consulta a Capella **no se ha probado con la base real** (WARP activo); queda para la prueba `nube` del cierre.
 - Cómo se prueba: reiniciar la API; Postman → 23. Cuarentena (`503` mientras WARP esté activo).
 - Aviso →AG: ya pueden tomar F4-03e. `motivo` acepta solo los 5 valores del contrato; muestren `registro` tal cual llega, sin agregarle ubicación.
+
+
+## 2026-11-25 · [AG] · F4-03a
+- Qué cambió: conexión de `GET /api/catalogos` (Contrato v0.5) mediante `ContextoCatalogos.jsx` (una sola consulta al entrar al dashboard; traducción de nombres incluyendo `activo: false` y opciones de filtros estrictamente con `activo: true`, sin listas fijas ni geografía); rutas históricas protegidas `/dashboard/usuarios` y `/dashboard/cuarentena` dentro de `RutaProtegida`; selectores `plataforma`, `especie` e `interes` en `VistaUsuarios.jsx` sincronizados con `URLSearchParams` y manejo de error aislado en la zona de filtros con botón "Reintentar".
+- Cómo se prueba: verificado por Angel en navegador (redirección sin sesión desde `/dashboard/usuarios` → `/login`, nombres de catálogos, persistencia en URL con `F5` y botón Atrás) y `npm run build`.
+- PETICIÓN →CC / →AG (si aplica): ninguna (la petición de F4-00 quedó atendida por `[CC]` en el Contrato v0.9 e `INDICADORES.md`).

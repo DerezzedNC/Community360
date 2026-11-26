@@ -97,3 +97,7 @@ export async function cerrarSesion(senal) {
     senal,
   });
 }
+
+export async function consultarCatalogos(senal) {
+  return peticionApi('/api/catalogos', { senal });
+}

@@ -6,27 +6,30 @@ export default function RutaProtegida() {
   const ubicacion = useLocation();
   const [intento, setIntento] = useState(0);
   const [consulta, setConsulta] = useState({
-    claveRuta: null,
-    intentoActual: -1,
     estado: 'verificando',
     usuario: null,
     mensaje: '',
   });
 
-  // Escucha restauraciones desde bfcache (botón Atrás del navegador)
+  // Escucha restauraciones desde bfcache (botón Atrás) y 401 en cualquier petición protegida
   useEffect(() => {
     function manejarMostrarPagina(evento) {
       if (evento.persisted) {
+        setConsulta({
+          estado: 'verificando',
+          usuario: null,
+          mensaje: '',
+        });
         setIntento((previo) => previo + 1);
       }
     }
 
     function manejarSesionExpirada() {
-      setConsulta((previo) => ({
-        ...previo,
+      setConsulta({
         estado: 'no_autenticado',
         usuario: null,
-      }));
+        mensaje: '',
+      });
     }
 
     window.addEventListener('pageshow', manejarMostrarPagina);
@@ -37,25 +40,20 @@ export default function RutaProtegida() {
     };
   }, []);
 
-  // Verifica GET /api/auth/me en cada entrada a la ruta protegida
+  // Comprueba GET /api/auth/me al entrar a /dashboard* y en cada cambio de ruta interna
   useEffect(() => {
     const controlador = new AbortController();
-    const claveActual = ubicacion.key;
 
-    setConsulta({
-      claveRuta: claveActual,
-      intentoActual: intento,
-      estado: 'verificando',
-      usuario: null,
-      mensaje: '',
-    });
+    setConsulta((previo) =>
+      previo.estado === 'autenticado'
+        ? previo
+        : { estado: 'verificando', usuario: null, mensaje: '' }
+    );
 
     consultarSesionActual(controlador.signal)
       .then((usuario) => {
         if (!controlador.signal.aborted) {
           setConsulta({
-            claveRuta: claveActual,
-            intentoActual: intento,
             estado: 'autenticado',
             usuario,
             mensaje: '',
@@ -69,8 +67,6 @@ export default function RutaProtegida() {
 
         if (error instanceof ErrorApi && error.codigoHttp === 401) {
           setConsulta({
-            claveRuta: claveActual,
-            intentoActual: intento,
             estado: 'no_autenticado',
             usuario: null,
             mensaje: '',
@@ -83,22 +79,21 @@ export default function RutaProtegida() {
             ? error.datos.detail
             : 'No se pudo comprobar la sesión porque el servidor o la base de datos no responde en este momento.';
 
-        setConsulta({
-          claveRuta: claveActual,
-          intentoActual: intento,
-          estado: 'error_servicio',
-          usuario: null,
-          mensaje: detalle,
-        });
+        setConsulta((previo) =>
+          previo.estado === 'autenticado'
+            ? previo
+            : {
+                estado: 'error_servicio',
+                usuario: null,
+                mensaje: detalle,
+              }
+        );
       });
 
     return () => controlador.abort();
-  }, [ubicacion.key, intento]);
+  }, [ubicacion.pathname, intento]);
 
-  const verificacionVigente =
-    consulta.claveRuta === ubicacion.key && consulta.intentoActual === intento;
-
-  if (!verificacionVigente || consulta.estado === 'verificando') {
+  if (consulta.estado === 'verificando') {
     return (
       <main className="contenedor-centrado">
         <section className="tarjeta-estado" role="status" aria-live="polite">
