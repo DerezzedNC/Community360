@@ -123,6 +123,20 @@ export default function LayoutDashboard() {
                   Usuarios por estatus
                 </a>
                 <a
+                  href="#seccion-geografia"
+                  className="navegacion__subenlace"
+                  onClick={() => setMenuAbierto(false)}
+                >
+                  Geografía
+                </a>
+                <a
+                  href="#seccion-puntos-calientes"
+                  className="navegacion__subenlace"
+                  onClick={() => setMenuAbierto(false)}
+                >
+                  Puntos calientes
+                </a>
+                <a
                   href="#seccion-plataformas"
                   className="navegacion__subenlace"
                   onClick={() => setMenuAbierto(false)}
@@ -137,11 +151,11 @@ export default function LayoutDashboard() {
                   Temas
                 </a>
                 <a
-                  href="#seccion-geografia"
+                  href="#seccion-tipos"
                   className="navegacion__subenlace"
                   onClick={() => setMenuAbierto(false)}
                 >
-                  Geografía
+                  Tipos y etiquetas
                 </a>
                 <a
                   href="#seccion-actividad"
@@ -149,6 +163,13 @@ export default function LayoutDashboard() {
                   onClick={() => setMenuAbierto(false)}
                 >
                   Actividad
+                </a>
+                <a
+                  href="#seccion-demografia"
+                  className="navegacion__subenlace"
+                  onClick={() => setMenuAbierto(false)}
+                >
+                  Demografía
                 </a>
               </div>
             )}

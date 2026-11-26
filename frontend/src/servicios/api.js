@@ -154,6 +154,22 @@ export async function consultarMetricasActividad(senal) {
   return peticionApi('/api/metricas/actividad', { senal });
 }
 
+export async function consultarPuntosCalientes(senal) {
+  return peticionApi('/api/metricas/puntos-calientes', { senal });
+}
+
+export async function consultarMetricasTipos(senal) {
+  return peticionApi('/api/metricas/tipos', { senal });
+}
+
+export async function consultarMetricasEtiquetas(senal) {
+  return peticionApi('/api/metricas/etiquetas', { senal });
+}
+
+export async function consultarMetricasDemografia(senal) {
+  return peticionApi('/api/metricas/demografia', { senal });
+}
+
 export async function consultarCuarentena(parametros = {}, senal) {
   const { pagina = 1, limite = 50, motivo = '' } = parametros;
   const busqueda = new URLSearchParams();

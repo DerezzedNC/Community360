@@ -55,6 +55,7 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | F6-04 | [CC] | WebSocket bidireccional: `{"accion": "actualizar"}`, error sin cerrar ante un mensaje desconocido y `cambio` (creada, editada, borrada + `id_interaccion`) en `metricas.actualizadas` | F5-01 | hecho |
 | F6-05 | [CC] | `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (top 10), de Capella con nombres de los catálogos | F4-02e | hecho |
 | F6-06 | [CC] | `GET /api/metricas/demografia` (TiDB): usuarios por rango de edad e interés principal | F4-02d | hecho |
+| F6-07 | [AG] | Mapa geográfico de puntos calientes, gráficas de tipos, etiquetas y demografía, y WebSocket bidireccional | F6-02, F6-03, F6-04, F6-05, F6-06 | hecho |
 
 ## Verificaciones pendientes
 

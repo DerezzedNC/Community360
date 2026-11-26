@@ -240,3 +240,13 @@ Agrega las entradas al final, la más reciente abajo. Formato:
   - `GET /api/metricas/tipos` → `{"total", "datos": [{"tipo", "nombre", "interacciones", "porcentaje"}]}` y `GET /api/metricas/etiquetas` → `{"limite": 10, "datos": [{"etiqueta", "nombre", "interacciones"}]}`. Cambian con el CRUD: volver a pedirlas con `metricas.actualizadas`.
   - `GET /api/metricas/demografia` → `{"total", "rangos_edad": [{"rango_edad", "descripcion", "usuarios", "porcentaje"}], "intereses": [{"interes", "nombre", "usuarios", "porcentaje"}], "cruce": [{"rango_edad", "interes", "usuarios"}]}`. No cambia con el CRUD.
   - WebSocket: `metricas.actualizadas` y `metricas.no_disponibles` traen `cambio` (`{"tipo": "creada" | "editada" | "borrada", "id_interaccion"}` o `null`). El cliente puede mandar `{"accion": "actualizar"}`; un mensaje desconocido recibe `{"evento": "error", "datos": {"detail"}}` sin cerrar.
+
+
+## 2026-11-25 · [AG] · F6-07
+- Qué cambió: integración en el dashboard de las mejoras del Contrato v0.15 (`F6-03` a `F6-06`):
+  - `MapaPuntosCalientes.jsx` con Leaflet y teselas de OpenStreetMap conectado a `GET /api/metricas/puntos-calientes`, dibujando únicamente los cuadros exactos de `0.2°` devueltos por la API con la insignia `"Solo con consentimiento · cuadros de 0.2° con 3 usuarios o más"`, sin interpolación más fina y con tope de acercamiento.
+  - Gráficas dinámicas de dona para `GET /api/metricas/tipos` y barras horizontales para `GET /api/metricas/etiquetas` (se refrescan automáticamente al llegar `metricas.actualizadas`).
+  - Sección de demografía (`GET /api/metricas/demografia`) con barras por rango de edad, barras por interés principal y mapa de calor del cruce `rango_edad × interés` (completando con `0` las combinaciones ausentes en `cruce`).
+  - WebSocket bidireccional en `useMetricasTiempoReal.js`: botón `"Actualizar en vivo"` que envía exactamente `{"accion": "actualizar"}`, manejo sin cierre de `evento: error` y aviso compacto del último cambio (`cambio.tipo`, `cambio.id_interaccion` y tiempo relativo en segundos/minutos).
+- Cómo se prueba: con la API v0.15 en `8000` y `npm run dev` en `5173`, abrir `/dashboard`, revisar el mapa Leaflet de puntos calientes, tipos, etiquetas y las tres gráficas de demografía, pulsar `"Actualizar en vivo"` y ejecutar un alta/edición/baja desde Postman para ver el aviso `"Interacción creada/editada/borrada · ID · hace X s"`.
+- PETICIÓN →CC / →AG (si aplica): ninguna.

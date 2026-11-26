@@ -662,8 +662,154 @@ body {
   margin-bottom: 0.95rem;
 }
 
+.barra-estado-ws__izquierda,
+.barra-estado-ws__derecha {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .barra-estado-ws .boton-secundario {
   margin-top: 0;
+}
+
+.boton-actualizar-ws {
+  padding: 0.36rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #93c5fd;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.boton-actualizar-ws:hover:not(:disabled) {
+  background-color: #dbeafe;
+  border-color: #60a5fa;
+}
+
+.boton-actualizar-ws:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.aviso-cambio-ws {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background-color: #f8fafc;
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+}
+
+.aviso-cambio-ws__punto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #2563eb;
+  flex-shrink: 0;
+}
+
+.aviso-cambio-ws--creada {
+  background-color: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.aviso-cambio-ws--creada .aviso-cambio-ws__punto {
+  background-color: #10b981;
+}
+
+.aviso-cambio-ws--editada {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.aviso-cambio-ws--editada .aviso-cambio-ws__punto {
+  background-color: #2563eb;
+}
+
+.aviso-cambio-ws--borrada {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.aviso-cambio-ws--borrada .aviso-cambio-ws__punto {
+  background-color: #d97706;
+}
+
+.aviso-cambio-ws__id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+/* Mapa geográfico Leaflet y subrejilla de demografía */
+.envoltorio-mapa-puntos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.contenedor-leaflet {
+  width: 100%;
+  border-radius: var(--radio-medio);
+  border: 1px solid var(--color-borde);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.leyenda-mapa-puntos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  color: var(--color-texto-secundario);
+}
+
+.leyenda-mapa-puntos__barra {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6 0%, #0ea5e9 33%, #f59e0b 68%, #dc2626 100%);
+}
+
+.subrejilla-demografia {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem;
+}
+
+.subbloque-demografia {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radio-medio);
+  background-color: #f8fafc;
+  border: 1px solid var(--color-borde);
+  min-width: 0;
+}
+
+.subbloque-demografia--completo {
+  margin-top: 1.15rem;
+}
+
+.subbloque-demografia__titulo {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-texto);
 }
 
 .insignia-ws {
@@ -1331,7 +1477,8 @@ body {
 
 /* Diseño responsivo */
 @media (max-width: 1024px) {
-  .rejilla-dashboard {
+  .rejilla-dashboard,
+  .subrejilla-demografia {
     grid-template-columns: 1fr;
   }
 
