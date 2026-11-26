@@ -1,26 +1,36 @@
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { escaparHtml } from './LienzoEcharts';
+import { ErrorGrafica, EsqueletoGrafica, TablaDatos } from './LienzoEcharts';
+import { escaparHtml, useTemaGraficas } from './temaGraficas';
 
-function obtenerEstiloCuadro(usuarios, minimo, maximo) {
-  const razon =
-    maximo > minimo ? (usuarios - minimo) / (maximo - minimo) : 1;
+// Fondo atenuado: teselas de OpenStreetMap con filtro gris (en CSS, clase .teselas-atenuadas).
+// Las teselas de CARTO Positron ahora piden una clave de API, así que se usa la alternativa de docs/DISENO.md §5.
+const TESELAS = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATRIBUCION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">colaboradores de OpenStreetMap</a>';
 
-  if (razon >= 0.75) {
-    return { color: '#b91c1c', fillColor: '#dc2626', fillOpacity: 0.68 };
-  }
-  if (razon >= 0.45) {
-    return { color: '#d97706', fillColor: '#f59e0b', fillOpacity: 0.62 };
-  }
-  if (razon >= 0.2) {
-    return { color: '#0284c7', fillColor: '#0ea5e9', fillOpacity: 0.56 };
-  }
-  return { color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.46 };
+// Gama del azul para las manchas (de menos a más usuarios)
+const GAMA_CLARO = ['#4DA2FF', '#2A8CF7', '#0F78EC', '#0067D6', '#0055B3'];
+const GAMA_OSCURO = ['#1A7FEA', '#3399FF', '#5CADFF', '#85C2FF', '#B3DAFF'];
+
+// Con zoom lejano un cuadro de 0.2° mide menos de 1 px: el borde, del mismo color, lo hace visible.
+// No cambia su tamaño ni su posición; de cerca el borde vuelve a 1 px.
+function grosorPorZoom(zoom) {
+  if (zoom <= 4) return 6;
+  if (zoom <= 5) return 4;
+  if (zoom <= 6) return 2;
+  return 1;
 }
 
-// Mapa de calor geográfico en cuadrícula sobre OpenStreetMap (Leaflet).
-// Dibuja exclusivamente los cuadros entregados por la API, sin interpolación más fina.
+function colorDeCuadro(usuarios, minimo, maximo, gama) {
+  const razon = maximo > minimo ? (usuarios - minimo) / (maximo - minimo) : 1;
+  const indice = Math.min(gama.length - 1, Math.floor(razon * gama.length));
+  return gama[indice];
+}
+
+// Mapa de calor geográfico en cuadrícula. Dibuja exclusivamente los cuadros entregados por la API,
+// sin interpolación más fina.
 export default function MapaPuntosCalientes({
   datos,
   tamanoCuadro = 0.2,
@@ -28,13 +38,18 @@ export default function MapaPuntosCalientes({
   cargando = false,
   error = '',
   alReintentar,
+  etiquetaAria = 'Mapa geográfico de puntos calientes',
+  tabla = null,
 }) {
+  const tema = useTemaGraficas();
   const contenedorRef = useRef(null);
   const mapaRef = useRef(null);
   const capaCuadrosRef = useRef(null);
+  const capaTeselasRef = useRef(null);
 
   const sinDatos = !Array.isArray(datos) || datos.length === 0;
   const mostrarMapa = !cargando && !error && !sinDatos;
+  const gama = tema.oscuro ? GAMA_OSCURO : GAMA_CLARO;
 
   const rango = useMemo(() => {
     if (sinDatos) {
@@ -66,12 +81,6 @@ export default function MapaPuntosCalientes({
       maxZoom: 11,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
-      maxZoom: 11,
-    }).addTo(mapa);
-
     const capaCuadros = L.featureGroup().addTo(mapa);
     mapaRef.current = mapa;
     capaCuadrosRef.current = capaCuadros;
@@ -86,12 +95,27 @@ export default function MapaPuntosCalientes({
       mapa.remove();
       mapaRef.current = null;
       capaCuadrosRef.current = null;
+      capaTeselasRef.current = null;
     };
+  }, [mostrarMapa]);
+
+  // Fondo atenuado; el filtro cambia solo con el modo del sistema (CSS)
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mostrarMapa || !mapa) {
+      return;
+    }
+    capaTeselasRef.current = L.tileLayer(TESELAS, {
+      attribution: ATRIBUCION,
+      maxZoom: 11,
+      className: 'teselas-atenuadas',
+    }).addTo(mapa);
+    capaTeselasRef.current.bringToBack();
   }, [mostrarMapa]);
 
   useEffect(() => {
     if (!mostrarMapa || !mapaRef.current || !capaCuadrosRef.current) {
-      return;
+      return undefined;
     }
 
     const mapa = mapaRef.current;
@@ -100,6 +124,28 @@ export default function MapaPuntosCalientes({
 
     const lado = Number(tamanoCuadro) > 0 ? Number(tamanoCuadro) : 0.2;
     const mitad = lado / 2;
+    const contorno = tema.oscuro ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.9)';
+    const seleccion = { weight: 3, color: tema.texto, fillColor: tema.color('indigo'), fillOpacity: 0.9 };
+    let seleccionado = null;
+
+    function estiloBase(usuarios) {
+      const grosor = grosorPorZoom(mapa.getZoom() ?? 3);
+      const relleno = colorDeCuadro(usuarios, rango.minimo, rango.maximo, gama);
+      return {
+        weight: grosor,
+        color: grosor > 1 ? relleno : contorno,
+        opacity: 0.9,
+        fillColor: relleno,
+        fillOpacity: 0.78,
+      };
+    }
+
+    function quitarSeleccion() {
+      if (seleccionado) {
+        seleccionado.capa.setStyle(estiloBase(seleccionado.usuarios));
+        seleccionado = null;
+      }
+    }
 
     for (const item of datos) {
       const lat = Number(item.latitud_centro);
@@ -115,33 +161,28 @@ export default function MapaPuntosCalientes({
       const oeste = Number((lon - mitad).toFixed(4));
       const este = Number((lon + mitad).toFixed(4));
 
-      const estilo = obtenerEstiloCuadro(
-        usuarios,
-        rango.minimo,
-        rango.maximo
-      );
-
       const rectangulo = L.rectangle(
         [
           [sur, oeste],
           [norte, este],
         ],
-        {
-          color: estilo.color,
-          weight: 1.5,
-          fillColor: estilo.fillColor,
-          fillOpacity: estilo.fillOpacity,
-        }
+        { ...estiloBase(usuarios), usuarios }
       );
 
-      const textoTooltip =
-        `<strong>Cuadro de ${escaparHtml(lado)}°</strong><br/>` +
-        `Centro: ${lat.toFixed(1)}°, ${lon.toFixed(1)}°<br/>` +
-        `Usuarios con consentimiento: <strong>${usuarios.toLocaleString('es-MX')}</strong>`;
-
-      rectangulo.bindTooltip(textoTooltip, {
-        sticky: true,
-        direction: 'top',
+      // Al seleccionar: contorno, cambio de color y un globo con el número de usuarios
+      rectangulo.bindPopup(
+        `<strong>${usuarios.toLocaleString('es-MX')} ${usuarios === 1 ? 'usuario' : 'usuarios'}</strong><br/>` +
+          `Cuadro de ${escaparHtml(lado)}° con centro en ${lat.toFixed(1)}°, ${lon.toFixed(1)}°`,
+        { closeButton: false, autoPanPadding: [24, 24], className: 'globo-mapa' }
+      );
+      rectangulo.on('click', () => {
+        quitarSeleccion();
+        rectangulo.setStyle(seleccion);
+        rectangulo.bringToFront();
+        seleccionado = { capa: rectangulo, usuarios };
+      });
+      rectangulo.on('popupclose', () => {
+        if (seleccionado?.capa === rectangulo) quitarSeleccion();
       });
 
       rectangulo.addTo(capa);
@@ -151,56 +192,32 @@ export default function MapaPuntosCalientes({
     if (limites.isValid()) {
       mapa.fitBounds(limites, { padding: [24, 24], maxZoom: 8 });
     }
-  }, [datos, mostrarMapa, rango.maximo, rango.minimo, tamanoCuadro]);
+
+    function ajustarGrosor() {
+      capa.eachLayer((rect) => {
+        if (seleccionado?.capa === rect) return;
+        rect.setStyle(estiloBase(rect.options.usuarios));
+      });
+    }
+    ajustarGrosor();
+    mapa.on('zoomend', ajustarGrosor);
+    return () => {
+      mapa.off('zoomend', ajustarGrosor);
+    };
+  }, [datos, gama, mostrarMapa, rango.maximo, rango.minimo, tamanoCuadro, tema]);
 
   if (cargando) {
-    return (
-      <div
-        className="estado-grafica"
-        style={{ minHeight: altura }}
-        role="status"
-        aria-live="polite"
-      >
-        <span className="indicador-carga" aria-hidden="true" />
-        <p className="estado-grafica__texto">
-          Cargando cuadrícula geográfica…
-        </p>
-      </div>
-    );
+    return <EsqueletoGrafica forma="mapa" altura={altura} />;
   }
 
   if (error) {
-    return (
-      <div
-        className="estado-grafica estado-grafica--error"
-        style={{ minHeight: altura }}
-        role="alert"
-      >
-        <p className="estado-grafica__titulo">
-          No se pudo cargar el mapa de puntos calientes
-        </p>
-        <p className="estado-grafica__texto">{error}</p>
-        {typeof alReintentar === 'function' && (
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={alReintentar}
-          >
-            Reintentar
-          </button>
-        )}
-      </div>
-    );
+    return <ErrorGrafica error={error} alReintentar={alReintentar} altura={altura} />;
   }
 
   if (sinDatos) {
     return (
-      <div
-        className="estado-grafica"
-        style={{ minHeight: altura }}
-        role="status"
-      >
-        <p className="estado-grafica__texto">Sin datos disponibles</p>
+      <div className="estado-grafica" style={{ minHeight: altura }} role="status">
+        <p className="estado-grafica__texto">Todavía no hay cuadros con 3 usuarios o más.</p>
       </div>
     );
   }
@@ -212,16 +229,19 @@ export default function MapaPuntosCalientes({
         className="contenedor-leaflet"
         style={{ height: altura }}
         role="region"
-        aria-label="Mapa geográfico de densidad en cuadrícula de 0.2 grados"
+        aria-label={etiquetaAria}
       />
-      <div className="leyenda-mapa-puntos" aria-hidden="true">
-        <span>
-          Menor concentración ({rango.minimo.toLocaleString('es-MX')})
-        </span>
-        <span className="leyenda-mapa-puntos__barra" />
-        <span>
-          Mayor concentración ({rango.maximo.toLocaleString('es-MX')})
-        </span>
+      <div className="pie-mapa">
+        <div className="leyenda-mapa-puntos">
+          <span>{rango.minimo.toLocaleString('es-MX')}</span>
+          <span
+            className="leyenda-mapa-puntos__barra"
+            style={{ background: `linear-gradient(90deg, ${gama.join(', ')})` }}
+            aria-hidden="true"
+          />
+          <span>{rango.maximo.toLocaleString('es-MX')} usuarios por cuadro</span>
+        </div>
+        <TablaDatos tabla={tabla} />
       </div>
     </div>
   );

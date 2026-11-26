@@ -1,54 +1,59 @@
+// Tarjeta del dashboard (docs/DISENO.md §3 y §6): título, subtítulo con unidades,
+// frase-resumen calculada con los datos de la API, insignias de privacidad y el contenido.
 export default function TarjetaSeccion({
   id,
   titulo,
-  descripcion,
-  rutaApi,
-  insigniaPrivacidad = '',
+  subtitulo = '',
+  descripcion = '', // nombre anterior de subtitulo
+  resumen = '',
+  esperandoResumen = false,
+  insignias = [],
+  insigniaPrivacidad = '', // nombre anterior de insignias
+  fuente = '',
+  rutaApi = '', // nombre anterior de fuente
+  ancho = 'mitad', // 'completo' | 'ancho' | 'mitad' | 'angosto'
   anchoCompleto = false,
-  pendienteConexion = false,
+  nivelTitulo = 3,
   children,
 }) {
+  const Titulo = `h${nivelTitulo}`;
+  const listaInsignias = insignias.length > 0 ? insignias : insigniaPrivacidad ? [insigniaPrivacidad] : [];
+  const textoSubtitulo = subtitulo || descripcion;
+  const textoFuente = fuente || rutaApi;
+  const claseAncho = anchoCompleto ? 'completo' : ancho;
+
   return (
     <article
       id={id}
-      className={`tarjeta-seccion ${
-        anchoCompleto ? 'tarjeta-seccion--completa' : ''
-      }`}
+      className={`tarjeta tarjeta--${claseAncho}`}
       aria-labelledby={`${id}-titulo`}
     >
-      <header className="tarjeta-seccion__encabezado">
-        <div>
-          <div className="tarjeta-seccion__fila-titulo">
-            <h2 id={`${id}-titulo`} className="tarjeta-seccion__titulo">
-              {titulo}
-            </h2>
-            {insigniaPrivacidad && (
-              <span className="insignia-privacidad">{insigniaPrivacidad}</span>
-            )}
-          </div>
-          {descripcion && (
-            <p className="tarjeta-seccion__descripcion">{descripcion}</p>
-          )}
-        </div>
-        {rutaApi && (
-          <code className="tarjeta-seccion__ruta" title="Endpoint del contrato">
-            {rutaApi}
-          </code>
+      <header className="tarjeta__encabezado">
+        <Titulo id={`${id}-titulo`} className="tarjeta__titulo">
+          {titulo}
+        </Titulo>
+        {textoSubtitulo && <p className="tarjeta__subtitulo">{textoSubtitulo}</p>}
+        {listaInsignias.length > 0 && (
+          <ul className="insignias" aria-label="Privacidad">
+            {listaInsignias.map((texto) => (
+              <li key={texto} className="insignia">
+                {texto}
+              </li>
+            ))}
+          </ul>
         )}
+        {resumen ? (
+          <p className="tarjeta__resumen" aria-live="polite">
+            {resumen}
+          </p>
+        ) : esperandoResumen ? (
+          <span className="esqueleto-linea" aria-hidden="true" />
+        ) : null}
       </header>
 
-      <div className="tarjeta-seccion__cuerpo">
-        {pendienteConexion ? (
-          <div className="estado-pendiente" role="status">
-            <span className="estado-pendiente__punto" aria-hidden="true" />
-            <p className="estado-pendiente__texto">
-              Pendiente de conexión con la API
-            </p>
-          </div>
-        ) : (
-          children
-        )}
-      </div>
+      <div className="tarjeta__cuerpo">{children}</div>
+
+      {textoFuente && <p className="tarjeta__fuente">Fuente: {textoFuente}</p>}
     </article>
   );
 }

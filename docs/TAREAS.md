@@ -57,6 +57,14 @@ Las tareas F4-02 y F4-03 son de **solo lectura** y no dependen de la lista míni
 | F6-06 | [CC] | `GET /api/metricas/demografia` (TiDB): usuarios por rango de edad e interés principal | F4-02d | hecho |
 | F6-07 | [AG] | Mapa geográfico de puntos calientes, gráficas de tipos, etiquetas y demografía, y WebSocket bidireccional | F6-02, F6-03, F6-04, F6-05, F6-06 | hecho |
 
+## Fase 7 · Rediseño visual (rama `rediseno`)
+
+Cambio de rol temporal: en F7-01 **[CC] trabaja en `frontend/`** y **[AG] no lo toca** mientras dure (ver `AGENTS.md`). Solo estilos y presentación, según `docs/DISENO.md`. Se une a `main` solo con aprobación de Angel.
+
+| ID | Equipo | Tarea | Depende de | Estado |
+|---|---|---|---|---|
+| F7-01 | [CC] | Rediseño visual del frontend según `docs/DISENO.md` (incluidas las reglas de las HIG de la sección 6) y fondo atenuado CARTO Positron en el mapa, sin cambiar API, WebSocket, sesión, rutas, privacidad ni filtros en la URL. **En revisión:** se une a `main` solo cuando Angel lo apruebe | F6-07 | hecho |
+
 ## Verificaciones pendientes
 
 | ID | Equipo | Tarea | Depende de | Estado |

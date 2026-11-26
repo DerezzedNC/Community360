@@ -1,17 +1,48 @@
 import { useEffect, useState } from 'react';
-import {
-  NavLink,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useOutletContext,
-} from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { ProveedorCatalogos } from '../contextos/ContextoCatalogos';
-import {
-  ErrorApi,
-  cerrarSesion,
-  consultarSalud,
-} from '../servicios/api';
+import { ErrorApi, cerrarSesion, consultarSalud } from '../servicios/api';
+
+const SECCIONES = [
+  { a: '/dashboard', texto: 'Métricas', fin: true },
+  { a: '/dashboard/usuarios', texto: 'Usuarios' },
+  { a: '/dashboard/cuarentena', texto: 'Cuarentena' },
+];
+
+// Fuera de Métricas no hay WebSocket: la barra muestra el estado del servicio (GET /api/health)
+function IndicadorServicio({ salud }) {
+  if (salud === undefined) {
+    return (
+      <span className="indicador indicador--apagado" role="status">
+        <span className="indicador__punto" aria-hidden="true" />
+        Comprobando servicio
+      </span>
+    );
+  }
+  if (salud?.estado === 'ok') {
+    return (
+      <span className="indicador indicador--ok" role="status">
+        <span className="indicador__punto" aria-hidden="true" />
+        Servicio disponible
+      </span>
+    );
+  }
+  if (salud?.estado === 'degradado') {
+    const faltan = [!salud.tidb && 'TiDB', !salud.capella && 'Capella'].filter(Boolean).join(' y ');
+    return (
+      <span className="indicador indicador--aviso" role="status">
+        <span className="indicador__punto" aria-hidden="true" />
+        {faltan ? `Sin conexión con ${faltan}` : 'Servicio incompleto'}
+      </span>
+    );
+  }
+  return (
+    <span className="indicador indicador--apagado" role="status">
+      <span className="indicador__punto" aria-hidden="true" />
+      Sin conexión
+    </span>
+  );
+}
 
 export default function LayoutDashboard() {
   const navegar = useNavigate();
@@ -19,10 +50,12 @@ export default function LayoutDashboard() {
   const contexto = useOutletContext() || {};
   const usuario = contexto.usuario || null;
 
-  const [salud, setSalud] = useState(null);
+  const [salud, setSalud] = useState(undefined); // undefined: todavía sin respuesta
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [errorCierre, setErrorCierre] = useState('');
+  // Lugar de la barra donde el dashboard pone el estado del WebSocket y "Actualizar en vivo"
+  const [ranuraEnVivo, setRanuraEnVivo] = useState(null);
 
   const enVistaMetricas = ubicacion.pathname === '/dashboard';
 
@@ -44,6 +77,22 @@ export default function LayoutDashboard() {
     return () => controlador.abort();
   }, []);
 
+  // El menú móvil se cierra al cambiar de vista y con Esc
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [ubicacion.pathname]);
+
+  useEffect(() => {
+    if (!menuAbierto) {
+      return undefined;
+    }
+    function manejarTecla(evento) {
+      if (evento.key === 'Escape') setMenuAbierto(false);
+    }
+    document.addEventListener('keydown', manejarTecla);
+    return () => document.removeEventListener('keydown', manejarTecla);
+  }, [menuAbierto]);
+
   async function manejarCierreSesion() {
     if (cerrandoSesion) {
       return;
@@ -62,231 +111,80 @@ export default function LayoutDashboard() {
       }
 
       setErrorCierre(
-        'No se pudo cerrar la sesión porque el servidor no respondió. Intenta nuevamente.'
+        'No se pudo cerrar la sesión porque el servidor no respondió. Revisa la conexión y elige Cerrar sesión otra vez.'
       );
       setCerrandoSesion(false);
     }
   }
 
-  const estadoSalud = salud?.estado;
-  const claseEstadoSalud =
-    estadoSalud === 'ok'
-      ? 'estado-salud--ok'
-      : estadoSalud === 'degradado'
-        ? 'estado-salud--degradado'
-        : 'estado-salud--desconectado';
-
   return (
     <ProveedorCatalogos>
-      <div className="estructura-app">
-        <aside
-          className={`barra-lateral ${menuAbierto ? 'barra-lateral--abierta' : ''}`}
-          aria-label="Navegación principal"
-        >
-          <div className="marca">
-            <span className="marca__sigla" aria-hidden="true">
-              C360
-            </span>
-            <div>
-              <p className="marca__titulo">COMMUNITY 360</p>
-              <p className="marca__subtitulo">Analítica híbrida en la nube</p>
+      <div className="app">
+        <a className="saltar-al-contenido" href="#contenido">
+          Saltar al contenido
+        </a>
+
+        <header className={`barra ${menuAbierto ? 'barra--abierta' : ''}`}>
+          <div className="barra__pildora">
+            <NavLink to="/dashboard" end className="barra__marca">
+              COMMUNITY 360
+            </NavLink>
+
+            <button
+              type="button"
+              className="barra__menu"
+              aria-expanded={menuAbierto}
+              aria-controls="barra-paneles"
+              onClick={() => setMenuAbierto((previo) => !previo)}
+            >
+              {menuAbierto ? 'Cerrar menú' : 'Menú'}
+            </button>
+
+            <div id="barra-paneles" className="barra__paneles">
+              <nav className="barra__nav" aria-label="Secciones">
+                {SECCIONES.map((seccion) => (
+                  <NavLink
+                    key={seccion.a}
+                    to={seccion.a}
+                    end={seccion.fin}
+                    className={({ isActive }) => `barra__enlace ${isActive ? 'barra__enlace--activo' : ''}`}
+                  >
+                    {seccion.texto}
+                  </NavLink>
+                ))}
+              </nav>
+
+              <div className="barra__derecha">
+                <div ref={setRanuraEnVivo} className="barra__en-vivo" />
+                {!enVistaMetricas && <IndicadorServicio salud={salud} />}
+                {usuario && (
+                  <span className="pildora-usuario">
+                    {usuario.nombre}
+                    <span className="pildora-usuario__rol">{usuario.rol}</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="boton boton--secundario boton--barra"
+                  onClick={manejarCierreSesion}
+                  disabled={cerrandoSesion}
+                >
+                  {cerrandoSesion ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                </button>
+              </div>
             </div>
           </div>
+        </header>
 
-          <nav className="navegacion">
-            <p className="navegacion__etiqueta">Vistas históricas</p>
-            <NavLink
-              to="/dashboard"
-              end
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Métricas y gráficas
-            </NavLink>
-
-            {enVistaMetricas && (
-              <div className="navegacion__grupo-anclas">
-                <a
-                  href="#seccion-resumen"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Resumen de indicadores
-                </a>
-                <a
-                  href="#seccion-estatus"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Usuarios por estatus
-                </a>
-                <a
-                  href="#seccion-geografia"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Geografía
-                </a>
-                <a
-                  href="#seccion-puntos-calientes"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Puntos calientes
-                </a>
-                <a
-                  href="#seccion-plataformas"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Plataformas
-                </a>
-                <a
-                  href="#seccion-temas"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Temas
-                </a>
-                <a
-                  href="#seccion-tipos"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Tipos y etiquetas
-                </a>
-                <a
-                  href="#seccion-actividad"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Actividad
-                </a>
-                <a
-                  href="#seccion-demografia"
-                  className="navegacion__subenlace"
-                  onClick={() => setMenuAbierto(false)}
-                >
-                  Demografía
-                </a>
-              </div>
-            )}
-
-            <NavLink
-              to="/dashboard/usuarios"
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Padrón de usuarios
-            </NavLink>
-
-            <NavLink
-              to="/dashboard/cuarentena"
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `navegacion__enlace ${isActive ? 'navegacion__enlace--activo' : ''}`
-              }
-            >
-              Cuarentena
-            </NavLink>
-          </nav>
-
-          <div className="barra-lateral__pie">
-            {usuario && (
-              <div className="ficha-usuario">
-                <p className="ficha-usuario__nombre">{usuario.nombre}</p>
-                <p className="ficha-usuario__correo">{usuario.correo}</p>
-                <span className="ficha-usuario__rol">{usuario.rol}</span>
-              </div>
-            )}
-            <span className="etiqueta-lectura">Modo solo lectura</span>
+        {errorCierre && (
+          <div className="aviso-cierre" role="alert">
+            {errorCierre}
           </div>
-        </aside>
-
-        {menuAbierto && (
-          <button
-            type="button"
-            className="fondo-movil"
-            aria-label="Cerrar menú lateral"
-            onClick={() => setMenuAbierto(false)}
-          />
         )}
 
-        <div className="contenedor-principal">
-          <header className="encabezado">
-            <div className="encabezado__izquierda">
-              <button
-                type="button"
-                className="boton-menu"
-                onClick={() => setMenuAbierto((previo) => !previo)}
-                aria-label="Alternar menú de navegación"
-              >
-                ☰
-              </button>
-              <div>
-                <h1 className="encabezado__titulo">Panel Analítico</h1>
-                <p className="encabezado__descripcion">
-                  TiDB Cloud · Couchbase Capella
-                </p>
-              </div>
-            </div>
-
-            <div className="encabezado__derecha">
-              <div
-                className={`estado-salud ${claseEstadoSalud}`}
-                role="status"
-                aria-live="polite"
-              >
-                <span className="estado-salud__punto" aria-hidden="true" />
-                {estadoSalud === 'ok' ? (
-                  <span>
-                    API activa · TiDB: {salud.tidb ? 'ok' : 'sin conexión'} · Capella:{' '}
-                    {salud.capella ? 'ok' : 'sin conexión'}
-                  </span>
-                ) : estadoSalud === 'degradado' ? (
-                  <span>
-                    degradado · TiDB: {salud.tidb ? 'ok' : 'sin conexión'} · Capella:{' '}
-                    {salud.capella ? 'ok' : 'sin conexión'}
-                  </span>
-                ) : (
-                  <span>sin conexión</span>
-                )}
-              </div>
-
-              {usuario && (
-                <div className="sesion-encabezado">
-                  <span className="sesion-encabezado__usuario">
-                    {usuario.nombre}{' '}
-                    <span className="sesion-encabezado__rol">({usuario.rol})</span>
-                  </span>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="boton-cerrar-sesion"
-                onClick={manejarCierreSesion}
-                disabled={cerrandoSesion}
-              >
-                {cerrandoSesion ? 'Cerrando sesión…' : 'Cerrar sesión'}
-              </button>
-            </div>
-          </header>
-
-          {errorCierre && (
-            <div className="aviso-cierre" role="alert">
-              {errorCierre}
-            </div>
-          )}
-
-          <main className="contenido-principal">
-            <Outlet context={{ usuario }} />
-          </main>
-        </div>
+        <main id="contenido" className="contenido" tabIndex={-1}>
+          <Outlet context={{ usuario, ranuraEnVivo }} />
+        </main>
       </div>
     </ProveedorCatalogos>
   );

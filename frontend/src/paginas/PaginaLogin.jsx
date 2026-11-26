@@ -6,6 +6,20 @@ import {
   iniciarSesion,
 } from '../servicios/api';
 
+// Validación al salir del campo (solo presentación: el envío y sus respuestas no cambian)
+const FORMATO_CORREO = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+function revisarCorreo(valor) {
+  const texto = valor.trim();
+  if (!texto) return 'Escribe tu correo.';
+  if (!FORMATO_CORREO.test(texto)) return 'Revisa el correo: debe tener la forma nombre@dominio.mx, sin acentos ni ñ.';
+  return '';
+}
+
+function revisarPassword(valor) {
+  return valor ? '' : 'Escribe tu contraseña.';
+}
+
 export default function PaginaLogin() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
@@ -14,6 +28,8 @@ export default function PaginaLogin() {
   const [password, setPassword] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [alerta, setAlerta] = useState(null);
+  const [errorCorreo, setErrorCorreo] = useState('');
+  const [errorPassword, setErrorPassword] = useState('');
 
   // Si ya existe una sesión válida en cookie httpOnly, redirige a /dashboard
   useEffect(() => {
@@ -43,9 +59,11 @@ export default function PaginaLogin() {
 
     const correoNormalizado = correo.trim().toLowerCase();
     if (!correoNormalizado || !password) {
+      setErrorCorreo(revisarCorreo(correo));
+      setErrorPassword(revisarPassword(password));
       setAlerta({
         tipo: 'error',
-        mensaje: 'Ingresa tu correo electrónico y tu contraseña.',
+        mensaje: 'Escribe tu correo y tu contraseña.',
       });
       return;
     }
@@ -69,7 +87,7 @@ export default function PaginaLogin() {
           setAlerta({
             tipo: 'error',
             mensaje:
-              'Revisa el formato de los datos: ingresa un correo válido (sin acentos ni ñ) y una contraseña válida.',
+              'Revisa los datos: el correo debe tener la forma nombre@dominio.mx, sin acentos ni ñ.',
           });
         } else if (error.codigoHttp === 503) {
           const detalleServicio =
@@ -78,13 +96,13 @@ export default function PaginaLogin() {
               : 'Servicio temporalmente no disponible';
           setAlerta({
             tipo: 'servicio',
-            mensaje: `${detalleServicio}. No es un fallo de contraseña; intenta nuevamente en unos momentos.`,
+            mensaje: `${detalleServicio.replace(/\.$/, '')}. La contraseña no es el problema: espera unos segundos y elige Iniciar sesión otra vez.`,
           });
         } else if (error.codigoHttp >= 500) {
           setAlerta({
             tipo: 'servicio',
             mensaje:
-              'No se pudo comunicar con la API de autenticación. Verifica que el backend esté activo en el puerto 8000.',
+              'No se pudo conectar con el servidor. Revisa que la API esté encendida en el puerto 8000 y elige Iniciar sesión otra vez.',
           });
         } else {
           setAlerta({
@@ -96,7 +114,7 @@ export default function PaginaLogin() {
         setAlerta({
           tipo: 'servicio',
           mensaje:
-            'Sin conexión con el servidor. Verifica que el backend esté en ejecución.',
+            'No se pudo conectar con el servidor. Revisa que la API esté encendida y elige Iniciar sesión otra vez.',
         });
       }
     } finally {
@@ -109,10 +127,7 @@ export default function PaginaLogin() {
       <main className="contenedor-centrado">
         <section className="tarjeta-estado" role="status" aria-live="polite">
           <span className="indicador-carga" aria-hidden="true" />
-          <h1 className="tarjeta-estado__titulo">Verificando sesión…</h1>
-          <p className="tarjeta-estado__texto">
-            Comprobando si ya tienes una sesión activa.
-          </p>
+          <h1 className="tarjeta-estado__titulo">Comprobando la sesión…</h1>
         </section>
       </main>
     );
@@ -121,21 +136,10 @@ export default function PaginaLogin() {
   return (
     <main className="contenedor-centrado">
       <section className="tarjeta-acceso" aria-labelledby="titulo-login">
-        <div className="tarjeta-acceso__encabezado">
-          <span className="marca__sigla" aria-hidden="true">
-            C360
-          </span>
-          <div>
-            <p className="tarjeta-acceso__marca">COMMUNITY 360</p>
-            <h1 id="titulo-login" className="tarjeta-acceso__titulo">
-              Iniciar sesión
-            </h1>
-          </div>
-        </div>
-
-        <p className="tarjeta-acceso__texto">
-          Ingresa con una cuenta autorizada para consultar el panel analítico.
-        </p>
+        <p className="tarjeta-acceso__marca">COMMUNITY 360</p>
+        <h1 id="titulo-login" className="tarjeta-acceso__titulo">
+          Inicia sesión. <span className="tarjeta-acceso__complemento">Usa tu cuenta de administración o de análisis.</span>
+        </h1>
 
         {alerta && (
           <div
@@ -170,10 +174,21 @@ export default function PaginaLogin() {
               placeholder="correo@ejemplo.mx"
               className="campo-formulario__entrada"
               value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
+              onChange={(e) => {
+                setCorreo(e.target.value);
+                if (errorCorreo) setErrorCorreo(revisarCorreo(e.target.value));
+              }}
+              onBlur={() => setErrorCorreo(revisarCorreo(correo))}
+              aria-invalid={errorCorreo ? true : undefined}
+              aria-describedby={errorCorreo ? 'error-correo' : undefined}
               disabled={enviando}
               required
             />
+            {errorCorreo && (
+              <p id="error-correo" className="campo-formulario__error">
+                {errorCorreo}
+              </p>
+            )}
           </div>
 
           <div className="campo-formulario">
@@ -189,26 +204,37 @@ export default function PaginaLogin() {
               type="password"
               autoComplete="current-password"
               maxLength={1024}
-              placeholder="Ingresa tu contraseña"
+              placeholder="Tu contraseña"
               className="campo-formulario__entrada"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errorPassword) setErrorPassword(revisarPassword(e.target.value));
+              }}
+              onBlur={() => setErrorPassword(revisarPassword(password))}
+              aria-invalid={errorPassword ? true : undefined}
+              aria-describedby={errorPassword ? 'error-password' : undefined}
               disabled={enviando}
               required
             />
+            {errorPassword && (
+              <p id="error-password" className="campo-formulario__error">
+                {errorPassword}
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            className="boton-primario"
+            className="boton boton--primario boton--ancho"
             disabled={enviando}
           >
-            {enviando ? 'Validando acceso…' : 'Iniciar sesión'}
+            {enviando ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </button>
         </form>
 
         <p className="tarjeta-acceso__nota">
-          Panel de solo lectura · Sesión protegida mediante cookie segura
+          El panel es de solo lectura. La sesión se guarda en una cookie segura y dura 60 minutos.
         </p>
       </section>
     </main>

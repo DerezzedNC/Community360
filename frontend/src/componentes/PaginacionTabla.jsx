@@ -10,17 +10,17 @@ export default function PaginacionTabla({
   const fin = Math.min(total, pagina * limite);
 
   return (
-    <nav className="paginacion" aria-label="Paginación de resultados">
+    <nav className="paginacion" aria-label="Páginas de resultados">
       <p className="paginacion__resumen">
         {total === 0
-          ? '0 registros encontrados'
-          : `Mostrando ${inicio}–${fin} de ${total} · Página ${pagina} de ${totalPaginas}`}
+          ? 'Sin resultados'
+          : `${inicio.toLocaleString('es-MX')}–${fin.toLocaleString('es-MX')} de ${total.toLocaleString('es-MX')} · página ${pagina} de ${totalPaginas}`}
       </p>
 
       <div className="paginacion__controles">
         <button
           type="button"
-          className="boton-paginacion"
+          className="boton boton--secundario boton--chico"
           onClick={() => alCambiarPagina(1)}
           disabled={deshabilitado || pagina <= 1}
         >
@@ -28,7 +28,7 @@ export default function PaginacionTabla({
         </button>
         <button
           type="button"
-          className="boton-paginacion"
+          className="boton boton--secundario boton--chico"
           onClick={() => alCambiarPagina(pagina - 1)}
           disabled={deshabilitado || pagina <= 1}
         >
@@ -36,7 +36,7 @@ export default function PaginacionTabla({
         </button>
         <button
           type="button"
-          className="boton-paginacion"
+          className="boton boton--secundario boton--chico"
           onClick={() => alCambiarPagina(pagina + 1)}
           disabled={deshabilitado || pagina >= totalPaginas}
         >
@@ -44,7 +44,7 @@ export default function PaginacionTabla({
         </button>
         <button
           type="button"
-          className="boton-paginacion"
+          className="boton boton--secundario boton--chico"
           onClick={() => alCambiarPagina(totalPaginas)}
           disabled={deshabilitado || pagina >= totalPaginas}
         >

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import { BarChart, HeatmapChart, PieChart } from 'echarts/charts';
 import {
@@ -8,6 +8,8 @@ import {
   VisualMapComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
+
+export { escaparHtml } from './temaGraficas';
 
 echarts.use([
   BarChart,
@@ -20,24 +22,91 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-export const PALETA_C360 = [
-  '#2563eb',
-  '#0ea5e9',
-  '#10b981',
-  '#f59e0b',
-  '#6366f1',
-  '#ec4899',
-  '#14b8a6',
-  '#64748b',
-];
+// Marcador de carga con la forma de la gráfica (HIG: mostrar algo de inmediato)
+export function EsqueletoGrafica({ forma = 'barras', altura }) {
+  return (
+    <div
+      className={`esqueleto esqueleto--${forma}`}
+      style={{ minHeight: altura }}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="sr-only">Cargando datos</span>
+      {forma === 'dona' && <span className="esqueleto__dona" aria-hidden="true" />}
+      {forma === 'barras' &&
+        [72, 48, 88, 36, 60].map((ancho) => (
+          <span key={ancho} className="esqueleto__barra" style={{ width: `${ancho}%` }} aria-hidden="true" />
+        ))}
+      {(forma === 'calor' || forma === 'mapa') && <span className="esqueleto__bloque" aria-hidden="true" />}
+    </div>
+  );
+}
 
-export function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+// Error junto al problema, sin culpar y diciendo qué hacer
+export function ErrorGrafica({ error, alReintentar, altura }) {
+  const detalle = String(error || '').replace(/\.$/, '');
+  return (
+    <div className="estado-grafica estado-grafica--error" style={{ minHeight: altura }} role="alert">
+      <p className="estado-grafica__titulo">No se pudieron cargar estos datos.</p>
+      <p className="estado-grafica__texto">
+        {detalle ? `${detalle}. ` : ''}Revisa la conexión y elige Reintentar.
+      </p>
+      {typeof alReintentar === 'function' && (
+        <button type="button" className="boton boton--secundario" onClick={alReintentar}>
+          Reintentar
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Alternativa accesible: la misma información en una tabla (divulgación progresiva)
+export function TablaDatos({ tabla }) {
+  const [abierta, setAbierta] = useState(false);
+  const id = useId();
+  if (!tabla || !Array.isArray(tabla.filas) || tabla.filas.length === 0) {
+    return null;
+  }
+  return (
+    <div className="ver-datos">
+      <button
+        type="button"
+        className="boton boton--secundario boton--chico"
+        aria-expanded={abierta}
+        aria-controls={id}
+        onClick={() => setAbierta((previo) => !previo)}
+      >
+        {abierta ? 'Ocultar datos' : 'Ver datos'}
+      </button>
+      {abierta && (
+        <div id={id} className="contenedor-tabla ver-datos__tabla">
+          <table className="tabla-datos tabla-datos--compacta">
+            <caption className="sr-only">{tabla.titulo}</caption>
+            <thead>
+              <tr>
+                {tabla.columnas.map((columna, indice) => (
+                  <th key={columna} scope="col" className={indice > 0 ? 'celda-numero' : undefined}>
+                    {columna}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tabla.filas.map((fila, indiceFila) => (
+                <tr key={indiceFila}>
+                  {fila.map((celda, indice) => (
+                    <td key={indice} className={indice > 0 ? 'celda-numero' : undefined}>
+                      {celda}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function LienzoEcharts({
@@ -46,8 +115,11 @@ export default function LienzoEcharts({
   cargando = false,
   error = '',
   sinDatos = false,
+  textoSinDatos = 'Todavía no hay datos para esta gráfica.',
   alReintentar,
-  etiquetaAria = 'Gráfica analítica',
+  etiquetaAria = 'Gráfica',
+  forma = 'barras',
+  tabla = null,
 }) {
   const contenedorRef = useRef(null);
   const instanciaRef = useRef(null);
@@ -77,65 +149,37 @@ export default function LienzoEcharts({
 
   useEffect(() => {
     if (mostrarGrafica && instanciaRef.current && opcion) {
-      instanciaRef.current.setOption(opcion, true);
+      // Sin reemplazar todo: ECharts anima la transición cuando llegan datos nuevos
+      instanciaRef.current.setOption(opcion, { notMerge: false, replaceMerge: ['series', 'xAxis', 'yAxis'] });
     }
   }, [mostrarGrafica, opcion]);
 
   if (cargando) {
-    return (
-      <div
-        className="estado-grafica"
-        style={{ minHeight: altura }}
-        role="status"
-        aria-live="polite"
-      >
-        <span className="indicador-carga" aria-hidden="true" />
-        <p className="estado-grafica__texto">Cargando datos…</p>
-      </div>
-    );
+    return <EsqueletoGrafica forma={forma} altura={altura} />;
   }
 
   if (error) {
-    return (
-      <div
-        className="estado-grafica estado-grafica--error"
-        style={{ minHeight: altura }}
-        role="alert"
-      >
-        <p className="estado-grafica__titulo">No se pudo cargar la gráfica</p>
-        <p className="estado-grafica__texto">{error}</p>
-        {typeof alReintentar === 'function' && (
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={alReintentar}
-          >
-            Reintentar
-          </button>
-        )}
-      </div>
-    );
+    return <ErrorGrafica error={error} alReintentar={alReintentar} altura={altura} />;
   }
 
   if (sinDatos) {
     return (
-      <div
-        className="estado-grafica"
-        style={{ minHeight: altura }}
-        role="status"
-      >
-        <p className="estado-grafica__texto">Sin datos disponibles</p>
+      <div className="estado-grafica" style={{ minHeight: altura }} role="status">
+        <p className="estado-grafica__texto">{textoSinDatos}</p>
       </div>
     );
   }
 
   return (
-    <div
-      ref={contenedorRef}
-      className="lienzo-echarts"
-      style={{ height: altura }}
-      role="img"
-      aria-label={etiquetaAria}
-    />
+    <>
+      <div
+        ref={contenedorRef}
+        className="lienzo-echarts"
+        style={{ height: altura }}
+        role="img"
+        aria-label={etiquetaAria}
+      />
+      <TablaDatos tabla={tabla} />
+    </>
   );
 }
