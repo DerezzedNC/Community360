@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ErrorApi, consultarSesionActual } from '../servicios/api';
+import { textoVisible } from '../utilidades/formato';
 
 export default function RutaProtegida() {
   const ubicacion = useLocation();
@@ -120,7 +121,7 @@ export default function RutaProtegida() {
             Servicio temporalmente no disponible
           </h1>
           <p className="tarjeta-estado__texto">
-            {consulta.mensaje}. Tu sesión no se ha cerrado.
+            {textoVisible(consulta.mensaje, 'No se pudo comprobar la sesión porque el servidor no responde')}. Tu sesión no se ha cerrado.
           </p>
           <button
             type="button"

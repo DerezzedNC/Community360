@@ -9,6 +9,8 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
+import { textoVisible } from '../../utilidades/formato';
+
 export { escaparHtml } from './temaGraficas';
 
 echarts.use([
@@ -44,7 +46,7 @@ export function EsqueletoGrafica({ forma = 'barras', altura }) {
 
 // Error junto al problema, sin culpar y diciendo qué hacer
 export function ErrorGrafica({ error, alReintentar, altura }) {
-  const detalle = String(error || '').replace(/\.$/, '');
+  const detalle = textoVisible(error, '');
   return (
     <div className="estado-grafica estado-grafica--error" style={{ minHeight: altura }} role="alert">
       <p className="estado-grafica__titulo">No se pudieron cargar estos datos.</p>
@@ -61,31 +63,27 @@ export function ErrorGrafica({ error, alReintentar, altura }) {
 }
 
 // Alternativa accesible: la misma información en una tabla (divulgación progresiva).
-// El pie lleva la ruta de la API como evidencia, en una línea pequeña (§8.3).
-export function TablaDatos({ tabla, fuente = '' }) {
+export function TablaDatos({ tabla }) {
   const [abierta, setAbierta] = useState(false);
   const id = useId();
   const hayTabla = tabla && Array.isArray(tabla.filas) && tabla.filas.length > 0;
-  if (!hayTabla && !fuente) {
+  if (!hayTabla) {
     return null;
   }
   return (
     <div className="ver-datos">
       <div className="ver-datos__pie">
-        {hayTabla && (
-          <button
-            type="button"
-            className="boton boton--secundario boton--chico"
-            aria-expanded={abierta}
-            aria-controls={id}
-            onClick={() => setAbierta((previo) => !previo)}
-          >
-            {abierta ? 'Ocultar datos' : 'Ver datos'}
-          </button>
-        )}
-        {fuente && <code className="ver-datos__fuente">{fuente}</code>}
+        <button
+          type="button"
+          className="boton boton--secundario boton--chico"
+          aria-expanded={abierta}
+          aria-controls={id}
+          onClick={() => setAbierta((previo) => !previo)}
+        >
+          {abierta ? 'Ocultar datos' : 'Ver datos'}
+        </button>
       </div>
-      {hayTabla && abierta && (
+      {abierta && (
         <div id={id} className="contenedor-tabla ver-datos__tabla">
           <table className="tabla-datos tabla-datos--compacta">
             <caption className="sr-only">{tabla.titulo}</caption>
@@ -127,7 +125,6 @@ export default function LienzoEcharts({
   etiquetaAria = 'Gráfica',
   forma = 'barras',
   tabla = null,
-  fuente = '',
   resaltar = null, // [{ seriesIndex, dataIndex }] que cambiaron en la última actualización
 }) {
   const contenedorRef = useRef(null);
@@ -217,7 +214,6 @@ export default function LienzoEcharts({
         <div className="estado-grafica" style={{ minHeight: altura }} role="status">
           <p className="estado-grafica__texto">{textoSinDatos}</p>
         </div>
-        <TablaDatos tabla={null} fuente={fuente} />
       </>
     );
   }
@@ -231,7 +227,7 @@ export default function LienzoEcharts({
         role="img"
         aria-label={etiquetaAria}
       />
-      <TablaDatos tabla={tabla} fuente={fuente} />
+      <TablaDatos tabla={tabla} />
     </>
   );
 }

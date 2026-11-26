@@ -5,7 +5,7 @@ import HojaModal from '../componentes/HojaModal';
 import PaginacionTabla from '../componentes/PaginacionTabla';
 import TarjetaSeccion from '../componentes/TarjetaSeccion';
 import { ErrorApi, consultarCuarentena } from '../servicios/api';
-import { formatearFechaHoraUtc, recortarId } from '../utilidades/formato';
+import { formatearFechaHoraUtc, recortarId, textoVisible } from '../utilidades/formato';
 
 const LIMITE_PAGINA = 50;
 
@@ -73,7 +73,7 @@ function ModalRegistroCuarentena({ elemento, alCerrar }) {
 
         <div>
           <p className="etiqueta-bloque-json">
-            Documento original, tal como lo devuelve la API y sin datos de ubicación.
+            Registro original, tal como se recibió y sin datos de ubicación.
           </p>
           <pre className="bloque-json" tabIndex={0}>
             {JSON.stringify(elemento.registro ?? {}, null, 2)}
@@ -227,7 +227,6 @@ export default function VistaCuarentena() {
         titulo="Registros"
         subtitulo="El documento original se muestra sin datos de ubicación."
         insignias={['Sin ubicación']}
-        fuente="GET /api/cuarentena"
         nivelTitulo={2}
         ancho="completo"
       >
@@ -242,7 +241,7 @@ export default function VistaCuarentena() {
           <div className="estado-grafica estado-grafica--error" role="alert">
             <p className="estado-grafica__titulo">No se pudo cargar la cuarentena.</p>
             <p className="estado-grafica__texto">
-              {estado.error.replace(/\.$/, '')}. Revisa la conexión y elige Reintentar.
+              {textoVisible(estado.error)}. Revisa la conexión y elige Reintentar.
             </p>
             <button
               type="button"

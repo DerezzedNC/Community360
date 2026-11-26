@@ -48,7 +48,6 @@ export default function MapaPuntosCalientes({
   alReintentar,
   etiquetaAria = 'Mapa geográfico de puntos calientes',
   tabla = null,
-  fuente = '',
 }) {
   const tema = useTemaGraficas();
   const { reducirMovimiento } = usePreferenciasSistema();
@@ -305,7 +304,7 @@ export default function MapaPuntosCalientes({
           />
           <span>{rango.maximo.toLocaleString('es-MX')} usuarios por cuadro</span>
         </div>
-        <TablaDatos tabla={tabla} fuente={fuente} />
+        <TablaDatos tabla={tabla} />
       </div>
     </div>
   );

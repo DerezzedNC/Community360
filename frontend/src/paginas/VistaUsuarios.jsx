@@ -12,7 +12,7 @@ import {
   consultarDetalleUsuario,
   consultarUsuarios,
 } from '../servicios/api';
-import { formatearFecha, recortarId } from '../utilidades/formato';
+import { formatearFecha, recortarId, textoVisible } from '../utilidades/formato';
 
 const LIMITE_PAGINA = 50;
 const CLAVES_FILTROS = ['estatus', 'plataforma', 'especie', 'interes'];
@@ -111,7 +111,7 @@ function ModalDetalleUsuario({
             {estado.error !== 'Usuario no encontrado' && (
               <>
                 <p className="estado-grafica__texto">
-                  {estado.error.replace(/\.$/, '')}. Revisa la conexión y elige Reintentar.
+                  {textoVisible(estado.error)}. Revisa la conexión y elige Reintentar.
                 </p>
                 <button
                   type="button"
@@ -442,7 +442,7 @@ export default function VistaUsuarios() {
                 No se pudieron cargar las opciones de plataforma, especie e interés.
               </p>
               <p className="zona-filtros__error-detalle">
-                {String(errorCatalogos).replace(/\.$/, '')}. Revisa la conexión y elige Reintentar.
+                {textoVisible(errorCatalogos)}. Revisa la conexión y elige Reintentar.
               </p>
             </div>
             <button
@@ -487,7 +487,6 @@ export default function VistaUsuarios() {
         titulo="Padrón"
         subtitulo="La ubicación solo aparece si el usuario dio su consentimiento, y nunca con coordenadas."
         insignias={['Ubicación solo con consentimiento']}
-        fuente="GET /api/usuarios"
         nivelTitulo={2}
         ancho="completo"
       >
@@ -502,7 +501,7 @@ export default function VistaUsuarios() {
           <div className="estado-grafica estado-grafica--error" role="alert">
             <p className="estado-grafica__titulo">No se pudo cargar el padrón.</p>
             <p className="estado-grafica__texto">
-              {estadoTabla.error.replace(/\.$/, '')}. Revisa la conexión y elige Reintentar.
+              {textoVisible(estadoTabla.error)}. Revisa la conexión y elige Reintentar.
             </p>
             <button
               type="button"

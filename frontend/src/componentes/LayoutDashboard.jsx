@@ -52,9 +52,9 @@ function ControlesEnVivo({ salud }) {
 
   const detalleServicio =
     salud?.estado === 'ok'
-      ? 'TiDB y Capella responden'
+      ? 'Los datos de usuarios e interacciones responden'
       : salud?.estado === 'degradado'
-        ? `Sin respuesta de ${[!salud.tidb && 'TiDB', !salud.capella && 'Capella'].filter(Boolean).join(' y ')}`
+        ? `Sin respuesta de ${[!salud.tidb && 'los datos de usuarios', !salud.capella && 'las interacciones'].filter(Boolean).join(' ni de ')}`
         : '';
   const detalleEspera = conexionWs === 'reconectando' && esperaReconexionSeg > 0 ? `Nuevo intento en ${esperaReconexionSeg} s` : '';
 

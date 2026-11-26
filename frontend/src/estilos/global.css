@@ -770,13 +770,6 @@ select {
   min-width: 0;
 }
 
-.tarjeta__fuente {
-  margin-top: auto;
-  color: var(--texto-2);
-  font-size: 0.75rem;
-  line-height: 1.33;
-  letter-spacing: -0.01em;
-}
 
 .insignias {
   display: flex;
@@ -1990,19 +1983,12 @@ select {
   gap: 12px 16px;
 }
 
-/* La ruta de la API, como evidencia discreta en el pie de "Ver datos" */
+/* Pie de "Ver datos" */
 .ver-datos__pie {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 16px;
-}
-.ver-datos__fuente,
-.tarjeta__fuente {
-  color: var(--texto-2);
-  font-family: var(--fuente-codigo);
-  font-size: 0.75rem;
-  letter-spacing: 0;
 }
 
 /* --- Resumen: KPI con jerarquía ------------------------------------------ */

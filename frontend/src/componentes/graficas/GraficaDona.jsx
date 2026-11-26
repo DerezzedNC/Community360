@@ -16,7 +16,6 @@ export default function GraficaDona({
   alReintentar,
   etiquetaAria = 'Gráfica de dona',
   tabla = null,
-  fuente = '',
 }) {
   const tema = useTemaGraficas();
   const sinDatos = !Array.isArray(datos) || datos.length === 0;
@@ -115,7 +114,6 @@ export default function GraficaDona({
         etiquetaAria={etiquetaAria}
         forma="dona"
         tabla={tabla}
-        fuente={fuente}
         resaltar={resaltar}
       />
       {!cargando && !error && !sinDatos && centro}

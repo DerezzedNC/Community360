@@ -66,7 +66,7 @@ export function ProveedorCatalogos({ children }) {
         const mensaje =
           err instanceof ErrorApi && typeof err.datos?.detail === 'string'
             ? err.datos.detail
-            : 'No se pudieron cargar los catálogos desde la API.';
+            : 'No se pudieron cargar los catálogos.';
 
         setEstado({
           cargando: false,

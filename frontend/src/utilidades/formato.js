@@ -94,3 +94,13 @@ export function buscarLideres(filas, obtenerValor) {
 export function plural(cantidad, singular, pluralTexto) {
   return Number(cantidad) === 1 ? singular : pluralTexto;
 }
+
+// Texto de error que se muestra en pantalla: si el detalle trae nombres técnicos
+// (API, HTTP, WebSocket, códigos, direcciones), se cambia por una frase sencilla.
+const TECNICO = /\b(API|HTTP|WebSocket|TiDB|Capella|localhost|JSON)\b|c[oó]digo \d|\b\d{3}\b|\/api\//i;
+
+export function textoVisible(detalle, alternativo = 'El servidor no respondió') {
+  const texto = String(detalle ?? '').trim().replace(/\.$/, '');
+  if (!texto || TECNICO.test(texto)) return alternativo;
+  return texto;
+}

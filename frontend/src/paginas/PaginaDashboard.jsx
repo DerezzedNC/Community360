@@ -31,6 +31,7 @@ import {
   formatearFechaHoraUtc,
   formatearPorcentaje,
   formatearTiempoRelativo,
+  textoVisible,
 } from '../utilidades/formato';
 import {
   resumenActividad,
@@ -648,7 +649,7 @@ export default function PaginaDashboard() {
 
       {avisoServicioResumen && r && (
         <p className="aviso-en-linea" role="alert">
-          No se pudo calcular el resumen nuevo ({avisoServicioResumen.replace(/\.$/, '')}). Se muestran los últimos datos recibidos; la página se actualizará sola cuando vuelva la conexión.
+          No se pudo calcular el resumen nuevo ({textoVisible(avisoServicioResumen)}). Se muestran los últimos datos recibidos; la página se actualizará sola cuando vuelva la conexión.
         </p>
       )}
 
@@ -667,7 +668,7 @@ export default function PaginaDashboard() {
               <Kpi
                 grande
                 valor={r.interacciones}
-                leyenda="interacciones registradas en Capella"
+                leyenda="interacciones registradas"
                 cambio={cambioDe('interacciones')}
                 recibidoEnMs={delta?.recibidoEnMs}
               />
@@ -715,9 +716,9 @@ export default function PaginaDashboard() {
           <div className="estado-grafica estado-grafica--error" role="alert">
             <p className="estado-grafica__titulo">No se pudo recibir el resumen en vivo.</p>
             <p className="estado-grafica__texto">
-              {avisoServicioResumen
-                ? `${avisoServicioResumen.replace(/\.$/, '')}. Revisa la conexión y elige Reintentar.`
-                : 'El servidor rechazó la conexión en vivo. Abre el dashboard desde http://localhost:5173 y elige Reintentar.'}
+              {conexionWs === 'origen_rechazado'
+                ? 'El servidor rechazó la conexión en vivo de esta página. Abre el panel desde su dirección habitual y elige Reintentar.'
+                : `${textoVisible(avisoServicioResumen)}. Revisa la conexión y elige Reintentar.`}
             </p>
             <button type="button" className="boton boton--secundario" onClick={reconectarAhora}>
               Reintentar
@@ -758,7 +759,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaPlataformas.reintentar}
               etiquetaAria={`Gráfica de barras agrupadas. Eje horizontal: plataformas; eje vertical: número de interacciones y de usuarios. ${frases.plataformas}`}
               tabla={plataformas.tabla}
-              fuente="GET /api/metricas/plataformas"
             />
           </TarjetaSeccion>
 
@@ -786,7 +786,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaTipos.reintentar}
               etiquetaAria={`Gráfica de dona con el porcentaje de interacciones de cada tipo. ${frases.tipos}`}
               tabla={tipos.tabla}
-              fuente="GET /api/metricas/tipos"
             />
           </TarjetaSeccion>
 
@@ -811,7 +810,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaActividad.reintentar}
               etiquetaAria={`Mapa de calor. Eje horizontal: hora del día; eje vertical: día de la semana; color: número de interacciones. ${frases.actividad}`}
               tabla={actividad.tabla}
-              fuente="GET /api/metricas/actividad"
             />
           </TarjetaSeccion>
 
@@ -856,7 +854,6 @@ export default function PaginaDashboard() {
                 vistaTemas === 'sentimiento' ? 'sentimiento promedio' : 'número de interacciones'
               }. ${frases.temas}`}
               tabla={temas.tabla}
-              fuente="GET /api/metricas/temas"
             />
           </TarjetaSeccion>
 
@@ -882,7 +879,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaEtiquetas.reintentar}
               etiquetaAria={`Gráfica de barras horizontales. Eje vertical: etiquetas; eje horizontal: número de interacciones. ${frases.etiquetas}`}
               tabla={etiquetas.tabla}
-              fuente="GET /api/metricas/etiquetas"
             />
           </TarjetaSeccion>
         </div>
@@ -910,7 +906,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaPuntosCalientes.reintentar}
               etiquetaAria={`Mapa interactivo con cuadros de ${pc?.tamano_cuadro ?? 0.2} grados; el color y el tamaño indican cuántos usuarios hay en cada cuadro. ${frases.puntos}`}
               tabla={tablaPuntos}
-              fuente="GET /api/metricas/puntos-calientes"
             />
           </TarjetaSeccion>
 
@@ -954,7 +949,6 @@ export default function PaginaDashboard() {
                 nivelGeografia === 'ciudades' ? 'ciudades' : 'estados'
               }; eje horizontal: usuarios con consentimiento. ${frases.geografia}`}
               tabla={geografia.tabla}
-              fuente="GET /api/metricas/geografia"
             />
           </TarjetaSeccion>
         </div>
@@ -984,7 +978,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaEstatus.reintentar}
               etiquetaAria={`Gráfica de dona con el porcentaje de usuarios por estatus. ${frases.estatus}`}
               tabla={estatus.tabla}
-              fuente="GET /api/metricas/estatus"
             />
           </TarjetaSeccion>
 
@@ -1006,7 +999,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaDemografia.reintentar}
               etiquetaAria={`Gráfica de barras. Eje horizontal: rango de edad; eje vertical: número de usuarios. ${frases.edad}`}
               tabla={demografia.edad.tabla}
-              fuente="GET /api/metricas/demografia"
             />
           </TarjetaSeccion>
 
@@ -1029,7 +1021,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaDemografia.reintentar}
               etiquetaAria={`Gráfica de barras horizontales. Eje vertical: interés principal; eje horizontal: número de usuarios. ${frases.interes}`}
               tabla={demografia.interes.tabla}
-              fuente="GET /api/metricas/demografia"
             />
           </TarjetaSeccion>
 
@@ -1054,7 +1045,6 @@ export default function PaginaDashboard() {
               alReintentar={consultaDemografia.reintentar}
               etiquetaAria={`Mapa de calor. Eje horizontal: rango de edad; eje vertical: interés principal; color: número de usuarios. ${frases.cruce}`}
               tabla={demografia.cruce.tabla}
-              fuente="GET /api/metricas/demografia"
             />
           </TarjetaSeccion>
         </div>

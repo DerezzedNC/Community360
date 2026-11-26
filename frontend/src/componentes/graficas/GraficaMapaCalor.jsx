@@ -15,7 +15,6 @@ export default function GraficaMapaCalor({
   alReintentar,
   etiquetaAria = 'Mapa de calor',
   tabla = null,
-  fuente = '',
   gama = null, // colores de menos a más; por omisión, la gama azul
 }) {
   const tema = useTemaGraficas();
@@ -162,7 +161,6 @@ export default function GraficaMapaCalor({
       etiquetaAria={etiquetaAria}
       forma="calor"
       tabla={tabla}
-      fuente={fuente}
       resaltar={resaltar}
     />
   );

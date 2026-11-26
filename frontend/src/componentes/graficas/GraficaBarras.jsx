@@ -25,7 +25,6 @@ export default function GraficaBarras({
   alReintentar,
   etiquetaAria = 'Gráfica de barras',
   tabla = null,
-  fuente = '',
 }) {
   const tema = useTemaGraficas();
   const anteriorRef = useRef(null);
@@ -167,7 +166,6 @@ export default function GraficaBarras({
       etiquetaAria={etiquetaAria}
       forma="barras"
       tabla={tabla}
-      fuente={fuente}
       resaltar={resaltar}
     />
   );

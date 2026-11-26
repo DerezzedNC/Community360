@@ -37,8 +37,6 @@ export default function TarjetaSeccion({
   esperandoResumen = false,
   insignias = [],
   insigniaPrivacidad = '', // nombre anterior de insignias
-  fuente = '',
-  rutaApi = '', // nombre anterior de fuente
   ancho = 'mitad', // 'completo' | 'ancho' | 'mitad' | 'angosto' | 'tercio'
   anchoCompleto = false,
   nivelTitulo = 3,
@@ -50,7 +48,6 @@ export default function TarjetaSeccion({
   const [ref, visible] = useRevelar();
   const listaInsignias = insignias.length > 0 ? insignias : insigniaPrivacidad ? [insigniaPrivacidad] : [];
   const textoSubtitulo = subtitulo || descripcion;
-  const textoFuente = fuente || rutaApi;
   const claseAncho = anchoCompleto ? 'completo' : ancho;
 
   return (
@@ -88,8 +85,6 @@ export default function TarjetaSeccion({
       </header>
 
       <div className="tarjeta__cuerpo">{children}</div>
-
-      {textoFuente && <code className="tarjeta__fuente">{textoFuente}</code>}
     </article>
   );
 }
