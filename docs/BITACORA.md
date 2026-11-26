@@ -141,3 +141,9 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Estado: `pytest` sin nube, 196 de 196. Las consultas de TiDB se revisaron contra la base real (solo lectura). Las de Capella **no se han probado con la base real** (WARP activo): se hace en la prueba `nube` del cierre de fase.
 - Cómo se prueba: reiniciar la API; Postman, carpeta Fase 4 → 17 a 22. Con WARP activo, `resumen`, `plataformas`, `temas` y `actividad` dan `503`; es lo esperado.
 - Aviso →AG: ya pueden tomar F4-03c y F4-03d. `plataforma` y `tema` son códigos (nombre con `/api/catalogos`); `actividad` está en UTC con `dia_semana` 1 = lunes; en geografía no inventen ni completen los grupos ocultos.
+
+## 2026-11-25 · [CC] · F4-02f Cuarentena
+- Qué hace: `GET /api/cuarentena` (`backend/app/routers/cuarentena.py`): lista paginada de solo lectura, filtro `motivo`, con `tipo_registro`, `motivos`, `detectado_en` y el `registro` original. La API quita de `registro` cualquier campo geográfico o coordenada. Contrato v0.9.
+- Estado: `pytest` sin nube, 204 de 204. La consulta a Capella **no se ha probado con la base real** (WARP activo); queda para la prueba `nube` del cierre.
+- Cómo se prueba: reiniciar la API; Postman → 23. Cuarentena (`503` mientras WARP esté activo).
+- Aviso →AG: ya pueden tomar F4-03e. `motivo` acepta solo los 5 valores del contrato; muestren `registro` tal cual llega, sin agregarle ubicación.

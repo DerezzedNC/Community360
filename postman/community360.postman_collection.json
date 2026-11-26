@@ -1231,7 +1231,60 @@
           "response": []
         },
         {
-          "name": "23. Logout (analista)",
+          "name": "23. Cuarentena",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Paginación y campos', () => { pm.expect(r).to.have.all.keys('total', 'pagina', 'limite', 'datos'); r.datos.forEach(d => pm.expect(d).to.include.all.keys('id_cuarentena', 'tipo_registro', 'motivos', 'detectado_en', 'registro')); });",
+                  "pm.test('Sin ubicación ni coordenadas', () => ['\"latitud\"', '\"longitud\"', '\"ciudad\"', '\"estado\":'].forEach(p => pm.expect(pm.response.text()).to.not.include(p)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{c360_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{c360_base_url}}/api/cuarentena?pagina=1&limite=20",
+              "host": [
+                "{{c360_base_url}}"
+              ],
+              "path": [
+                "api",
+                "cuarentena"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Registros rechazados por el ETL (Capella), paginados. Filtro opcional motivo. Sin ubicación ni coordenadas."
+          },
+          "response": []
+        },
+        {
+          "name": "24. Logout (analista)",
           "event": [
             {
               "listen": "test",

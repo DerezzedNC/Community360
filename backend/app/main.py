@@ -13,7 +13,7 @@ from app.config import Settings, get_settings
 from app.db.capella import Capella, CapellaNoDisponible
 from app.db.tidb import TiDB
 from app.dependencias import proteger
-from app.routers import auth, catalogos, health, metricas, usuarios
+from app.routers import auth, catalogos, cuarentena, health, metricas, usuarios
 from app.tokens import Tokens
 
 logger = logging.getLogger("community360")
@@ -60,7 +60,7 @@ def create_app(
     settings = settings or get_settings()
     app = FastAPI(
         title="COMMUNITY 360",
-        version="0.8",
+        version="0.9",
         lifespan=ciclo_de_vida,
         # Protegido por defecto: las rutas públicas están en dependencias.py
         dependencies=[Depends(proteger)],
@@ -82,4 +82,5 @@ def create_app(
     app.include_router(catalogos.router)
     app.include_router(usuarios.router)
     app.include_router(metricas.router)
+    app.include_router(cuarentena.router)
     return app

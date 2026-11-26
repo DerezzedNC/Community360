@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.8** (Fase 3 cerrada; en la Fase 4 ya están definidos `GET /api/catalogos`, `GET /api/usuarios` y `GET /api/metricas/*`; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
+**Versión 0.9** (Fase 3 cerrada; en la Fase 4 ya están definidas todas las consultas: catálogos, usuarios, métricas y cuarentena; el resto de las Fases 4 y 5 es propuesta pendiente de confirmar con el profesor).
 
 | Versión | Cambio |
 |---|---|
+| 0.9 | `GET /api/cuarentena` definido: paginado, filtro `motivo`, `registro` sin geografía (F4-02f) |
 | 0.8 | `GET /api/metricas/*` definidos; geografía oculta grupos de menos de 3 usuarios; `503` también si Capella no responde (F4-02c, d y e) |
 | 0.7 | El `503` de TiDB también aplica si las conexiones del pool siguen ocupadas después de 10 s (F4-04) |
 | 0.6 | `GET /api/usuarios` y `GET /api/usuarios/{id_usuario}` definidos; reglas generales de paginación (`422` fuera de rango) y de privacidad (nunca coordenadas) (F4-02b) |
@@ -141,7 +142,7 @@ Validaciones de `POST` y `PUT` (si falla alguna → `422` con el campo y el moti
 | `GET /api/metricas/temas` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/actividad` | **Definido en v0.8**: ver abajo |
 | `GET /api/metricas/geografia` | **Definido en v0.8**: ver abajo |
-| `GET /api/cuarentena` | Registros rechazados. Filtro: `motivo` |
+| `GET /api/cuarentena` | **Definido en v0.9**: ver abajo |
 
 ### `GET /api/catalogos` (requiere sesión, ambos roles) · v0.5
 
@@ -235,6 +236,25 @@ Fórmulas en `docs/INDICADORES.md`. Sin parámetros. `401` sin sesión; `503` �
 `plataforma` y `tema` son códigos: el nombre sale de `GET /api/catalogos`. Las listas de `geografia` van de mayor a menor número de usuarios.
 
 **Privacidad en `geografia`:** solo cuenta usuarios con `consentimiento_datos = TRUE`; **no devuelve ningún estado ni ciudad con menos de 3 usuarios**; nunca trae coordenadas ni `id_usuario`.
+
+### `GET /api/cuarentena` (requiere sesión, ambos roles) · v0.9
+
+Registros que el ETL rechazó (colección `cuarentena` de Capella). Solo lectura, paginado como dice [Paginación](#paginación-todas-las-listas), del más reciente al más antiguo (`detectado_en`, luego `id_cuarentena`).
+
+Filtro opcional `motivo`: `duplicado`, `tipo_dato_invalido`, `categoria_invalida`, `usuario_inexistente` o `fecha_anterior_ingreso`. Otro valor → `422`.
+
+```json
+{ "total": 797, "pagina": 1, "limite": 50, "datos": [ {
+  "id_cuarentena": "q_0a1b2c3d4e5f6a7b", "tipo_registro": "interaccion",
+  "motivos": ["usuario_inexistente"], "detectado_en": "2026-11-20T10:00:00Z",
+  "fuente": "csv", "id_lote": "...", "estado_revision": "pendiente", "id_original": "I0001825",
+  "registro": { "id_interaccion": "I0001825", "id_usuario": "U009999", "...": "campos originales" }
+} ] }
+```
+
+- `registro` trae los campos originales tal como llegaron, **sin** `pais`, `estado`, `ciudad`, `zona_horaria`, `latitud` ni `longitud`: la API los quita aunque estuvieran en el documento.
+- `tipo_registro` es `interaccion` (el ETL solo manda interacciones a cuarentena).
+- `401` sin sesión, `422` por un parámetro inválido, `503` si Capella no responde.
 
 ---
 

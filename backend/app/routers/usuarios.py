@@ -5,11 +5,11 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Path, Query, Request
 from pydantic import BaseModel
 
+from app.paginacion import Limite, Pagina
 from app.repositorios import usuarios
 
 router = APIRouter(prefix="/api/usuarios", tags=["usuarios"])
 
-LIMITE_MAXIMO = 200
 FORMATO_CODIGO = r"^[a-z0-9_]+$"
 FORMATO_ID = r"^U[0-9]{6,9}$"
 
@@ -69,8 +69,8 @@ def a_usuario(fila: dict) -> Usuario:
 @router.get("")
 def listar_usuarios(
     request: Request,
-    pagina: Annotated[int, Query(ge=1)] = 1,
-    limite: Annotated[int, Query(ge=1, le=LIMITE_MAXIMO)] = 50,
+    pagina: Pagina = 1,
+    limite: Limite = 50,
     estatus: Literal["activo", "en_riesgo", "inactivo"] | None = None,
     plataforma: Codigo = None,
     especie: Codigo = None,
