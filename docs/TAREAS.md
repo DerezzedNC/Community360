@@ -66,6 +66,12 @@ Hecha por [CC] en la rama `rediseno` con un cambio de rol temporal, ya terminado
 | F7-01 | [CC] | Rediseño visual del frontend según `docs/DISENO.md` (incluidas las reglas de las HIG de la sección 6) y fondo atenuado CARTO Positron en el mapa, sin cambiar API, WebSocket, sesión, rutas, privacidad ni filtros en la URL. Unida a `main` en `v2.0` | F6-07 | hecho |
 | F7-02 | [CC] | Rediseño v2 según `docs/DISENO.md` §8: errores de 8.7, sensación de en vivo, aurora y login en dos columnas, índice y bento con jerarquía, colores fijos por código, mapa con burbujas y ranking, tablas y hoja lateral. Unida a `main` en `v2.0` | F7-01 | hecho |
 
+## Fase 8 · Despliegue
+
+| ID | Equipo | Tarea | Depende de | Estado |
+|---|---|---|---|---|
+| F8-01 | [CC] | Preparar el despliegue en Render (un solo servicio, mismo dominio): FastAPI sirve `frontend/dist` con respaldo a `index.html`, `COOKIE_SECURE`, `Dockerfile` de dos etapas, `.dockerignore`, `render.yaml` y sección "Despliegue" en `backend/README.md` | F7-02 | hecho |
+
 ## Verificaciones pendientes
 
 | ID | Equipo | Tarea | Depende de | Estado |

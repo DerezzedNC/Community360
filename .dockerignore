@@ -1,0 +1,39 @@
+# Lo que nunca entra a la imagen de Docker
+
+# Secretos
+**/.env
+**/.env.*
+*.pem
+*.key
+credentials*.txt
+.claude/
+
+# Dependencias y builds locales (se instalan y construyen dentro de la imagen)
+**/node_modules
+**/.venv
+**/venv
+frontend/dist
+
+# Datos de origen, entregas y documentación
+etl/
+docs/
+evidencias/
+postman/
+*.csv
+*.pdf
+*.docx
+*.xlsx
+*.zip
+
+# Pruebas y cachés
+backend/tests/
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.log
+
+# Repositorio y editores
+.git
+.gitignore
+.idea/
+.vscode/

@@ -276,3 +276,8 @@ Agrega las entradas al final, la más reciente abajo. Formato:
 - Qué cambió: con la aprobación de Angel, la rama `rediseno` (F7-01 y F7-02) se unió a `main` con un commit de unión, sin reescribir historial, y lleva la etiqueta `v2.0`. F7-01 y F7-02 quedan en `hecho`.
 - Fin del cambio de rol: **`frontend/` vuelve a [AG]** (`AGENTS.md`). [CC] sigue con `backend/`, `postman/` y los documentos de la API.
 - Aviso →AG: el frontend actual es el de `v2.0`; la guía visual es `docs/DISENO.md` (secciones 1 a 8). Antes de cambiar algo, hacer `git pull`. Sin cambios en la API, el WebSocket ni la sesión.
+
+## 2026-11-27 · [CC] · F8-01 Preparar el despliegue en Render (un solo servicio, mismo dominio)
+- Qué cambió: la API sirve `frontend/dist` (`backend/app/estaticos.py`): un `GET`/`HEAD` fuera de `/api` y `/ws` que ninguna ruta reconoce devuelve el archivo o `index.html`; `/api/*` conserva su protección y su `404`/`405`. Nueva variable `COOKIE_SECURE` (por omisión `false`): con `true`, `c360_token` lleva `Secure` en login y logout. `Dockerfile` de dos etapas (Node 24 construye el frontend; Python 3.13 corre uvicorn con `--proxy-headers` en `$PORT`), `.dockerignore` y `render.yaml` (Docker, plan free, salud en `/`, secretos con `sync: false`). Contrato v0.16, sin rutas nuevas.
+- Cómo se prueba: `.venv\Scripts\python -m pytest tests/test_despliegue.py`; en Render, seguir "Despliegue" de `backend/README.md` y abrir `https://<servicio>.onrender.com/api/health`. La imagen no se construyó en local (no hay Docker en esta máquina): el primer build lo hace Render.
+- Aviso →AG: sin cambios en `frontend/`. El frontend debe seguir usando rutas relativas (`/api`, `/ws`) para funcionar en el mismo dominio.

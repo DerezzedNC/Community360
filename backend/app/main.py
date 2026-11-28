@@ -14,6 +14,7 @@ from app.db.capella import Capella, CapellaNoDisponible
 from app.db.tidb import TiDB
 from app.dependencias import proteger
 from app.difusor import Difusor
+from app.estaticos import servir_frontend
 from app.routers import auth, catalogos, cuarentena, health, interacciones, metricas, usuarios, ws
 from app.tokens import Tokens
 
@@ -61,7 +62,7 @@ def create_app(
     settings = settings or get_settings()
     app = FastAPI(
         title="COMMUNITY 360",
-        version="0.15",
+        version="0.16",
         lifespan=ciclo_de_vida,
         # Protegido por defecto: las rutas públicas están en dependencias.py
         dependencies=[Depends(proteger)],
@@ -89,4 +90,6 @@ def create_app(
     app.include_router(cuarentena.router)
     app.include_router(interacciones.router)
     app.include_router(ws.router)
+    # Al final: solo atiende lo que ninguna ruta de la API reconoce
+    servir_frontend(app, settings.FRONTEND_DIST)
     return app

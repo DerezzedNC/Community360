@@ -1,9 +1,10 @@
 # Contrato de la API · COMMUNITY 360
 
-**Versión 0.15** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard).
+**Versión 0.16** (Fases 3 a 6 definidas: autenticación, consultas, métricas, cuarentena, CRUD de interacciones, WebSocket y métricas adicionales del dashboard; despliegue en un solo dominio).
 
 | Versión | Cambio |
 |---|---|
+| 0.16 | Despliegue: el backend sirve el build del frontend (un `GET` fuera de `/api` y `/ws` devuelve un archivo o `index.html`) y la cookie lleva `Secure` con `COOKIE_SECURE=true`. Sin rutas nuevas (F8-01) |
 | 0.15 | `GET /api/metricas/demografia`: usuarios por rango de edad, por interés principal y cruce de los dos (F6-06) |
 | 0.14 | `GET /api/metricas/tipos` y `GET /api/metricas/etiquetas` (top 10), de Capella con nombres de los catálogos (F6-05) |
 | 0.13 | WebSocket bidireccional: el cliente pide `{"accion": "actualizar"}`; un mensaje desconocido recibe `evento: error` sin cerrar; `metricas.actualizadas` trae `cambio` (F6-04) |
@@ -21,6 +22,7 @@ Este documento lo mantiene **[CC]**. **[AG]** lo consume tal cual. Cualquier cam
 ## Generalidades
 
 - Backend: `http://localhost:8000`. Frontend: `http://localhost:5173`, que reenvía `/api` y `/ws` al backend con el proxy de Vite (así cookie y API quedan en el mismo origen).
+- Producción (Render, v0.16): un solo dominio `https://<servicio>.onrender.com`. El backend sirve `frontend/dist`: un `GET` o `HEAD` que no sea de `/api` ni de `/ws` y que ninguna ruta reconozca devuelve ese archivo o, si no existe, `index.html`. `/api/*` y `/ws/*` conservan su `404` en JSON y su protección; un archivo de `/assets/` que no existe da `404`.
 - Todo el cuerpo va en JSON (`Content-Type: application/json`), en UTF-8.
 - Fechas en ISO 8601 y UTC: `2026-10-28T16:59:03Z`.
 - Errores siempre con la forma `{"detail": "mensaje"}`. Los de validación (422) usan el formato de FastAPI, pero cada error trae solo `type`, `loc` y `msg`: nunca se devuelve lo que envió el cliente.
@@ -46,7 +48,7 @@ Todo `/api/*` pide sesión, menos `GET /api/health` y `POST /api/auth/login`. Un
 El backend acepta el token de dos formas (en este orden):
 
 1. Encabezado `Authorization: Bearer <token>`. Lo usa Postman. Si viene, es el único que cuenta, aunque esté vacío o no sea válido: en ese caso responde `401` sin mirar la cookie.
-2. Cookie `c360_token` (httpOnly, `SameSite=Lax`, `Path=/`). La usa el dashboard. Solo se lee si no hay `Bearer`.
+2. Cookie `c360_token` (httpOnly, `SameSite=Lax`, `Path=/`; además `Secure` si `COOKIE_SECURE=true`, como en Render). La usa el dashboard. Solo se lee si no hay `Bearer`.
 
 | Código | Cuándo |
 |---|---|

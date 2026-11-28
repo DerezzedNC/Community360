@@ -51,9 +51,10 @@ def login(datos: DatosLogin, request: Request, response: Response) -> RespuestaL
         usuario_admin.registrar_acceso(con, cuenta["id_admin"])
 
     token = tokens.crear(cuenta["id_admin"], cuenta["rol"])
-    # Sin Secure porque el proyecto corre en http://localhost
+    # Secure solo en producción (https): en http://localhost el navegador no la guardaría
     response.set_cookie(
-        COOKIE, token, max_age=tokens.segundos, path="/", httponly=True, samesite="lax"
+        COOKIE, token, max_age=tokens.segundos, path="/", httponly=True, samesite="lax",
+        secure=request.app.state.settings.COOKIE_SECURE,
     )
     response.headers["Cache-Control"] = "no-store"
     return RespuestaLogin(
@@ -73,4 +74,7 @@ def me(request: Request, sesion: SesionActual) -> Usuario:
 @router.post("/logout", status_code=204)
 def logout(request: Request, response: Response, sesion: SesionActual) -> None:
     request.app.state.tokens.revocar(sesion)
-    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax")
+    response.delete_cookie(
+        COOKIE, path="/", httponly=True, samesite="lax",
+        secure=request.app.state.settings.COOKIE_SECURE,
+    )

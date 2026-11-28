@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -31,6 +33,8 @@ def settings_prueba() -> Settings:
         TIDB_HOST="tidb.invalid", TIDB_USER="prueba", TIDB_PASSWORD=CLAVE_PRUEBA,
         CB_CONN="couchbases://cb.invalid", CB_USER="prueba", CB_PASSWORD=CLAVE_PRUEBA,
         JWT_SECRET=CLAVE_PRUEBA,
+        # Sin build del frontend: así las pruebas no dependen de frontend/dist
+        FRONTEND_DIST=Path(__file__).parent / "sin_frontend",
     )
 
 

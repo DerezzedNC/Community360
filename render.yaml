@@ -1,0 +1,37 @@
+# Blueprint de Render: un servicio web con Docker (API + frontend en el mismo dominio).
+# Los valores secretos NO van aquí: "sync: false" hace que Render los pida al crear el
+# servicio y se guardan solo en el panel de Render.
+services:
+  - type: web
+    name: community360
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # "/" sirve index.html sin tocar las bases: no falla si Capella tarda en responder
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # TiDB Cloud
+      - key: TIDB_HOST
+        sync: false
+      - key: TIDB_USER
+        sync: false
+      - key: TIDB_PASSWORD
+        sync: false
+      # Couchbase Capella
+      - key: CB_CONN
+        sync: false
+      - key: CB_USER
+        sync: false
+      - key: CB_PASSWORD
+        sync: false
+      # Autenticación
+      - key: JWT_SECRET
+        sync: false
+      # URL pública del servicio, sin "/" al final (p. ej. https://<servicio>.onrender.com)
+      - key: FRONTEND_ORIGEN
+        sync: false
+      # No es secreto: en Render todo va por https
+      - key: COOKIE_SECURE
+        value: "true"

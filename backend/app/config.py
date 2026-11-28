@@ -6,6 +6,8 @@ from pydantic import Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 RUTA_ENV = Path(__file__).resolve().parent.parent / ".env"
+# Build del frontend (npm run build). En Docker queda en el mismo lugar relativo
+RUTA_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 class Settings(BaseSettings):
@@ -35,6 +37,10 @@ class Settings(BaseSettings):
     JWT_SECRET: SecretStr = Field(min_length=32)
     JWT_MINUTOS: int = Field(default=60, gt=0)
     FRONTEND_ORIGEN: str = "http://localhost:5173"
+
+    # Despliegue: en Render (https) la cookie de sesión lleva Secure
+    COOKIE_SECURE: bool = False
+    FRONTEND_DIST: Path = RUTA_DIST
 
 
 class ErrorConfiguracion(RuntimeError):
